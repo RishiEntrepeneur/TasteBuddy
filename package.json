@@ -5,6 +5,8 @@
   "description": "Web-native AR dining platform. Scan a QR code, see the dish on your plate.",
   "scripts": {
     "dev": "next dev",
+    "dev:lan": "next dev -H 0.0.0.0",
+    "dev:lan:https": "next dev -H 0.0.0.0 --experimental-https",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

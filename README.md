@@ -10,8 +10,21 @@ No app store, no download, no account.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000/restaurant/aurelia-kitchen
+npm run dev            # http://localhost:3000/restaurant/aurelia-kitchen
 ```
+
+To open it on a phone on the same Wi-Fi:
+
+```bash
+npm run dev:lan        # binds 0.0.0.0 — reach it at http://<your-lan-ip>:3000
+npm run dev:lan:https  # same, over HTTPS — required for the AR camera
+```
+
+`getUserMedia` only runs in a secure context, and a bare LAN IP over plain HTTP
+is not one. The menu and profile routes are fine under `dev:lan`; AR needs
+`dev:lan:https`, which generates a self-signed certificate you accept once on
+the device. The viewer detects an insecure origin and says so rather than
+failing silently.
 
 Runs with **zero infrastructure** out of the box: no database, no API keys and
 no asset bucket are required. Set the environment variables in
