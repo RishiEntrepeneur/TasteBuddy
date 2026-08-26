@@ -24,6 +24,12 @@ import type { MenuItemConflict } from "@/lib/types";
 interface AllergenWarningOverlayProps {
   /** World radius of the dish being warned about, in metres. */
   radius: number;
+  /**
+   * Widest the banner may be drawn, in world metres — the visible frustum width
+   * at the dish's depth, less a margin. Sizing the banner from the dish alone
+   * clips it off-screen for a large dish and leaves it tiny for a small one.
+   */
+  maxWidth: number;
   /** Allergen conflicts to name. Nutrition conflicts are not shown in AR. */
   conflicts: readonly MenuItemConflict[];
   /** Honours the diner's reduced-motion preference. */
@@ -77,6 +83,7 @@ function drawBanner(
 
 export function AllergenWarningOverlay({
   radius,
+  maxWidth,
   conflicts,
   reducedMotion,
 }: AllergenWarningOverlayProps) {
@@ -145,9 +152,9 @@ export function AllergenWarningOverlay({
 
   if (allergenConflicts.length === 0) return null;
 
-  // 3.2x the dish radius put the banner edge-to-edge on a 390px viewport and
-  // clipped both ends; 2.4x keeps it inside the frame at arm's length.
-  const bannerWidth = radius * 2.4;
+  // Track the dish, but never past the edge of the frame: a 24cm plate would
+  // otherwise push the banner wider than the viewport and clip both ends.
+  const bannerWidth = Math.min(radius * 2.4, maxWidth);
   const bannerHeight = bannerWidth * (BANNER_HEIGHT / BANNER_WIDTH);
 
   return (

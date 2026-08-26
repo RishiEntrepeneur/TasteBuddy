@@ -148,6 +148,15 @@ function AnchoredDish({
 
   const dishRadius = (targetDiameter / 2) * Math.cbrt(portion);
 
+  // Visible frustum width where the dish sits, so the warning banner can be
+  // clamped to the frame rather than to the dish.
+  const visibleWidth = useMemo(() => {
+    const aspect = size.height > 0 ? size.width / size.height : 1;
+    const halfHeight =
+      Math.tan((CAMERA_FOV_DEGREES * Math.PI) / 360) * FALLBACK_DISTANCE_M;
+    return 2 * halfHeight * aspect;
+  }, [size.width, size.height]);
+
   return (
     <group ref={group} position={pose.position}>
       <Suspense fallback={null}>
@@ -169,6 +178,7 @@ function AnchoredDish({
       {item.hasAllergenConflict ? (
         <AllergenWarningOverlay
           radius={dishRadius}
+          maxWidth={visibleWidth * 0.88}
           conflicts={item.conflicts}
           reducedMotion={reducedMotion}
         />
