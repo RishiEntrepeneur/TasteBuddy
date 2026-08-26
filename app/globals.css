@@ -9,13 +9,32 @@
  */
 
 @theme {
-  --color-surface: #ffffff;
-  --color-surface-muted: #f6f5f4;
-  --color-surface-raised: #ffffff;
-  --color-border: #e7e5e4;
-  --color-ink: #1c1917;
+  /* --- Stone-neutral brand palette ------------------------------------- */
+  /* Warm alabaster page, soft sandstone surfaces, charcoal obsidian type. */
+  --color-surface: #fdfbf7; /* alabaster */
+  --color-surface-raised: #f4f1ea; /* sandstone */
+  --color-surface-muted: #ede9e0; /* recessed sandstone */
+  --color-border: #e2ddd1; /* warm hairline */
+  --color-ink: #1c1917; /* obsidian */
   --color-ink-muted: #78716c;
   --color-accent: #e07a3f;
+
+  /*
+   * Sage olive — the selected state. Chosen at 5.36:1 on alabaster and
+   * 5.54:1 under white, so it reads as an accent in either direction
+   * rather than needing a second colour for text on the filled control.
+   */
+  --color-sage: #5f6d50;
+  --color-sage-soft: #ebefe4;
+
+  /*
+   * Terracotta crimson — warnings only, never decoration. 6.60:1 on
+   * alabaster and 6.82:1 under white. Deliberately quieter than the AR
+   * overlay's red, which has to survive a live camera feed.
+   */
+  --color-terracotta: #9c3b2e;
+  --color-terracotta-soft: #f9ede9;
+
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
   --color-safe: #15803d;
@@ -24,15 +43,31 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/*
+ * Dark ground.
+ *
+ * These are plain custom-property overrides on `:root`, NOT a second `@theme`
+ * block. Tailwind v4 hoists every `@theme` declaration into one flat `:root`
+ * rule regardless of any `@media` wrapping it, so nesting `@theme` inside a
+ * media query silently makes the last-declared value win unconditionally —
+ * which pins the whole app to one scheme. Overriding the same variables here
+ * keeps the media query intact, and the utilities read `var(--color-*)` either
+ * way.
+ */
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root {
     --color-surface: #0c0a09;
-    --color-surface-muted: #1c1917;
     --color-surface-raised: #171412;
+    --color-surface-muted: #1c1917;
     --color-border: #292524;
     --color-ink: #fafaf9;
     --color-ink-muted: #a8a29e;
     --color-danger-soft: #2a1111;
+    /* The accents lift so they keep their contrast against a dark ground. */
+    --color-sage: #a3b18a;
+    --color-sage-soft: #1e241a;
+    --color-terracotta: #d98570;
+    --color-terracotta-soft: #2a1712;
   }
 }
 

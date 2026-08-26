@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, ShieldAlert, Sparkles } from "lucide-react";
+import { Check, Leaf, Loader2, ShieldAlert } from "lucide-react";
 import { useCallback, useMemo } from "react";
 
 import { useAllergenProfile } from "@/lib/hooks/useAllergenProfile";
@@ -25,6 +25,14 @@ import type { AllergenKey } from "@/lib/types";
  * writes to is browser-local by construction. The only time an allergen leaves
  * the device is as a query parameter on a menu request the diner initiated,
  * which is never persisted server-side.
+ *
+ * Colour
+ * ------
+ * Built entirely from the shared stone-neutral tokens in `globals.css`, so the
+ * card sits on the same alabaster and sandstone as the menu blocks. Sage olive
+ * marks a selected switch. Terracotta is held back for warnings alone — the
+ * FLAGGED badges and the cross-contamination notice — so the alert colour never
+ * appears as decoration and keeps its meaning wherever it does show up.
  */
 
 /**
@@ -46,7 +54,7 @@ interface AllergyOption {
 const ALLERGY_OPTIONS: readonly AllergyOption[] = [
   {
     id: "nuts",
-    label: "Peanuts / Tree nuts",
+    label: "Peanuts & tree nuts",
     detail: "Groundnut, almond, cashew, walnut, pistachio, hazelnut",
     keys: ["peanuts", "tree_nuts"],
   },
@@ -90,36 +98,19 @@ export function AllergySelector({
     <section
       aria-labelledby="allergy-selector-heading"
       className={[
-        "relative isolate overflow-hidden rounded-2xl",
-        "border border-slate-800 bg-slate-950 text-slate-100",
-        "shadow-[0_0_0_1px_rgba(34,211,238,0.06),0_24px_60px_-24px_rgba(0,0,0,0.9)]",
+        "overflow-hidden rounded-card border border-border bg-surface-raised",
         className,
       ].join(" ")}
     >
-      {/*
-        Grid field. Two repeating-linear-gradients masked by a radial fade, so
-        the whole effect is one painted layer — no SVG, no canvas, nothing to
-        composite per frame. `pointer-events-none` keeps it clear of the
-        switches stacked above it.
-      */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgba(148,163,184,0.09)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.09)_1px,transparent_1px)] bg-[size:28px_28px] [mask-image:radial-gradient(ellipse_75%_60%_at_50%_0%,#000_55%,transparent_100%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-48 w-[22rem] -translate-x-1/2 rounded-full bg-cyan-400/12 blur-3xl"
-      />
-
-      <header className="flex items-start justify-between gap-4 border-b border-slate-800/80 px-5 py-4">
+      <header className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
         <div className="min-w-0">
           <h2
             id="allergy-selector-heading"
-            className="text-[15px] font-semibold tracking-tight text-slate-50"
+            className="text-lg font-semibold tracking-tight text-ink"
           >
             {title}
           </h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-slate-400">
+          <p className="mt-1 text-sm leading-relaxed text-ink-muted">
             Saved on this device only. Flagged dishes are marked in the menu and
             over the dish in AR.
           </p>
@@ -127,21 +118,24 @@ export function AllergySelector({
 
         <span
           className={[
-            "shrink-0 rounded-full border px-2.5 py-1 font-mono text-[11px] tabular-nums transition-colors",
+            "mt-0.5 shrink-0 rounded-full border px-2.5 py-1 text-xs tabular-nums transition-colors",
             activeCount > 0
-              ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
-              : "border-slate-700 text-slate-500",
+              ? "border-sage/35 bg-sage-soft text-sage"
+              : "border-border text-ink-muted",
           ].join(" ")}
         >
-          {activeCount}/{ALLERGY_OPTIONS.length}
+          {activeCount} of {ALLERGY_OPTIONS.length}
         </span>
       </header>
 
-      <ul className="divide-y divide-slate-800/70">
-        {ALLERGY_OPTIONS.map((option) => {
+      <ul className="border-t border-border">
+        {ALLERGY_OPTIONS.map((option, index) => {
           const active = isActive(option);
           return (
-            <li key={option.id}>
+            <li
+              key={option.id}
+              className={index > 0 ? "border-t border-border/70" : undefined}
+            >
               <button
                 type="button"
                 role="switch"
@@ -151,65 +145,65 @@ export function AllergySelector({
                 // Safari; the row is a full-width 64px target.
                 className={[
                   "group flex w-full touch-manipulation items-center gap-4 px-5 py-4 text-left",
-                  "transition-colors duration-150 outline-none",
-                  "focus-visible:bg-slate-900 active:bg-slate-900/70",
-                  active ? "bg-cyan-400/[0.04]" : "hover:bg-slate-900/50",
+                  "outline-none transition-colors duration-150",
+                  "focus-visible:bg-surface-muted active:bg-surface-muted",
+                  active ? "bg-sage-soft/45" : "hover:bg-surface-muted/60",
                 ].join(" ")}
               >
                 <span
                   aria-hidden
                   className={[
-                    "flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors duration-150",
+                    "flex size-[22px] shrink-0 items-center justify-center rounded-md border transition-colors duration-150",
                     active
-                      ? "border-cyan-400 bg-cyan-400 text-slate-950"
-                      : "border-slate-700 bg-slate-900 text-transparent group-hover:border-slate-600",
+                      ? "border-sage bg-sage text-white"
+                      : "border-ink/20 bg-surface text-transparent group-hover:border-ink/35",
                   ].join(" ")}
                 >
-                  <Check className="size-4" strokeWidth={3} />
+                  <Check className="size-3.5" strokeWidth={3} />
                 </span>
 
                 <span className="min-w-0 flex-1">
                   <span
                     className={[
                       "block text-[15px] font-medium transition-colors duration-150",
-                      active ? "text-cyan-300" : "text-slate-200",
+                      active ? "text-sage" : "text-ink",
                     ].join(" ")}
                   >
                     {option.label}
                   </span>
-                  <span className="mt-0.5 block truncate text-[12px] text-slate-500">
+                  <span className="mt-0.5 block truncate text-[13px] text-ink-muted">
                     {option.detail}
                   </span>
                 </span>
 
-                <span
-                  aria-hidden
-                  className={[
-                    "shrink-0 rounded px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors duration-150",
-                    active ? "bg-pink-500/15 text-pink-400" : "text-slate-600",
-                  ].join(" ")}
-                >
-                  {active ? "Flagged" : "Off"}
-                </span>
+                {active ? (
+                  <span className="shrink-0 rounded-full bg-terracotta-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-terracotta">
+                    Flagged
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[13px] text-ink-muted/70">
+                    Off
+                  </span>
+                )}
               </button>
             </li>
           );
         })}
       </ul>
 
-      <div className="border-t border-slate-800/80 px-5 py-4">
+      <div className="border-t border-border px-5 py-4">
         <label className="flex touch-manipulation items-start gap-3">
           <input
             type="checkbox"
             checked={profile.strict}
             onChange={(event) => setStrict(event.target.checked)}
-            className="mt-0.5 size-4 shrink-0 accent-pink-500"
+            className="mt-0.5 size-4 shrink-0 accent-[var(--color-terracotta)]"
           />
           <span className="min-w-0">
-            <span className="block text-[13px] font-medium text-slate-200">
+            <span className="block text-sm font-medium text-ink">
               Flag cross-contamination
             </span>
-            <span className="mt-0.5 block text-[12px] leading-relaxed text-slate-500">
+            <span className="mt-0.5 block text-[13px] leading-relaxed text-ink-muted">
               Also warns on shared fryers and prep surfaces. Leave on for a
               severe allergy.
             </span>
@@ -220,10 +214,10 @@ export function AllergySelector({
       {activeCount > 0 ? (
         <p
           role="status"
-          className="flex items-start gap-2 border-t border-pink-500/20 bg-pink-500/[0.07] px-5 py-3 text-[12px] leading-relaxed text-pink-200"
+          className="flex items-start gap-2.5 border-t border-terracotta/20 bg-terracotta-soft px-5 py-3.5 text-[13px] leading-relaxed text-ink"
         >
           <ShieldAlert
-            className="mt-px size-3.5 shrink-0 text-pink-400"
+            className="mt-0.5 size-4 shrink-0 text-terracotta"
             aria-hidden
           />
           <span>
@@ -232,8 +226,8 @@ export function AllergySelector({
           </span>
         </p>
       ) : (
-        <p className="flex items-start gap-2 border-t border-slate-800/80 px-5 py-3 text-[12px] leading-relaxed text-slate-500">
-          <Sparkles className="mt-px size-3.5 shrink-0" aria-hidden />
+        <p className="flex items-start gap-2.5 border-t border-border px-5 py-3.5 text-[13px] leading-relaxed text-ink-muted">
+          <Leaf className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             Select anything you avoid and the whole menu re-checks itself.
           </span>
@@ -254,9 +248,9 @@ export function AllergySelectorSkeleton() {
   return (
     <div
       aria-hidden
-      className="flex h-[22rem] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950"
+      className="flex h-[22rem] items-center justify-center rounded-card border border-border bg-surface-raised"
     >
-      <Loader2 className="size-5 animate-spin text-slate-700" />
+      <Loader2 className="size-5 animate-spin text-ink-muted/50" />
     </div>
   );
 }
