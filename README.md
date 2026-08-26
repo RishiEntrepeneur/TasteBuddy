@@ -1,0 +1,200 @@
+# TasteBuddy
+
+A web-native AR dining platform. A restaurant puts one QR code on the table; a
+diner scans it, the menu opens in the browser they already have, and every dish
+can be projected onto their own empty plate at the portion they actually want —
+with anything that clashes with their allergies flagged both in the menu and
+over the 3D model itself.
+
+No app store, no download, no account.
+
+```bash
+npm install
+npm run dev          # http://localhost:3000/restaurant/aurelia-kitchen
+```
+
+Runs with **zero infrastructure** out of the box: no database, no API keys and
+no asset bucket are required. Set the environment variables in
+`.env.example` to move each piece to real infrastructure, one at a time.
+
+## Architecture
+
+```
+app/
+  page.tsx                            Venue directory (staff-facing)
+  restaurant/[id]/page.tsx            The diner dashboard the QR code opens
+  api/menu/route.ts                   Menu, filtered by allergens + nutrition
+  api/tastebuddy-pipeline/route.ts    2D photo -> optimised .glb pipeline
+components/
+  TasteBuddyARViewer.tsx              Camera + WebGL AR canvas
+  ar/DishModel.tsx                    .glb loader with procedural fallback
+  ar/AllergenWarningOverlay.tsx       In-scene warning anchored to the dish
+  RestaurantDashboard.tsx             Interactive menu shell
+  MenuItemCard.tsx, PortionSlider.tsx, AllergenProfilePicker.tsx
+lib/
+  types.ts                            Domain model — the single source of truth
+  menu-filter.ts                      Conflict evaluation (shared server+client)
+  allergens.ts, nutrition.ts          Allergen catalogue, portion scaling
+  ar/plate-tracker.ts                 Surface tracking on an empty plate
+  pipeline/{validation,lod,cdn,generator}.ts
+  db/{client,repository,seed}.ts      Postgres, with a seed-data fallback
+db/
+  schema.sql                          Restaurants, MenuItems, Allergens, 3D assets
+  seed.sql                            Demo data mirroring lib/db/seed.ts
+```
+
+### The data hub
+
+`db/schema.sql` is the relational core: `restaurants`, `menu_items`,
+`allergens` (seeded with the 14 EU FIC declarable allergens, a superset of the
+US "big 9"), the `menu_item_allergens` join carrying a per-dish severity, and
+`asset_3d` for generated meshes.
+
+Two decisions worth calling out:
+
+- **Nutrition is stored per base portion and scaled on read.** The portion
+  slider therefore never writes, and a "1.5× lamb shoulder" is evaluated against
+  the diner's calorie ceiling without a round trip.
+- **`asset_3d.source_checksum` is the pipeline's idempotency key**, backed by a
+  partial unique index. Re-uploading the same dish photo resolves to the meshes
+  that already exist instead of paying to generate them again.
+
+`lib/db/repository.ts` reads from Postgres when `DATABASE_URL` is set and from
+`lib/db/seed.ts` otherwise. Callers never branch on which is active. The whole
+menu — allergens aggregated to JSON, live asset joined — is one round trip, so
+rendering a menu never N+1s.
+
+### The allergen model
+
+Severity is three-valued, because "contains peanuts" and "fried in a shared
+peanut fryer" are different facts:
+
+| Severity | Meaning | Hard conflict? |
+| --- | --- | --- |
+| `contains` | A listed ingredient | Always |
+| `may_contain` | Shared fryer or prep surface | Only in strict mode (the default) |
+| `removable` | An optional garnish that can be left off | Never — shown as an advisory |
+
+Strict mode is on unless explicitly disabled, so the failure mode is a spurious
+warning rather than a missed one.
+
+A diner's profile lives in `localStorage` and is **never persisted
+server-side** — it is health data and TasteBuddy has no account to attach it to.
+It reaches `/api/menu` as a query string for the life of one request. The
+dashboard re-evaluates conflicts on the client with the same pure function the
+API uses (`lib/menu-filter.ts`), so toggling an allergen is instant and a dish
+can never be judged safe in one place and unsafe in another.
+
+### `GET /api/menu`
+
+| Parameter | Description |
+| --- | --- |
+| `restaurant` | **Required.** UUID or QR slug |
+| `allergens` | `peanuts,dairy,gluten` — unknown keys are ignored, not rejected |
+| `strict` | `false` stops treating "may contain" as a conflict |
+| `mode` | `flag` (default) annotates conflicts; `exclude` drops unsafe dishes |
+| `category` | `starters` \| `mains` \| `sides` \| `desserts` \| `drinks` |
+| `q` | Fuzzy name/description search |
+| `portions` | `itemId:1.5,otherId:0.75` — thresholds apply to the scaled portion |
+| `maxCalories`, `maxSodium`, `maxSugar`, `maxFat`, `maxCarbs`, `maxProtein`, `maxFiber` | Upper bounds |
+
+```bash
+curl "localhost:3000/api/menu?restaurant=hanoi-house&allergens=peanuts,shellfish&maxSodium=1500&mode=exclude"
+```
+
+### `/api/tastebuddy-pipeline`
+
+| Method | Purpose |
+| --- | --- |
+| `POST` | `multipart/form-data` with `image` and `menuItemId`. Starts a mesh job. |
+| `GET ?jobId=…` | Poll a job. Omit `jobId` for the pipeline's configuration. |
+| `PUT` | Generator webhook callback, HMAC-SHA256 signed. |
+
+1. **Validate cheaply first.** Format is sniffed from magic bytes, never trusted
+   from the multipart header; size and pixel dimensions are read from the file
+   header without decoding the image. A photo that cannot produce a usable mesh
+   is rejected before any money is spent on it.
+2. **Hash and look up.** A checksum hit returns the cached CDN paths and the
+   request costs nothing.
+3. **Submit, decimate, cache.** The finished mesh is decimated into three tiers
+   and written to immutable, content-addressed paths.
+
+Failed jobs are deliberately *not* cached, so a retry is always allowed.
+
+With `GENERATOR_WEBHOOK_URL` unset, a built-in mock follows the identical
+contract — job id now, signed callback later — so the whole pipeline is
+exercised end to end in development without a paid API key.
+
+### Polygon reduction
+
+Budgets are set by the tightest real constraint, which is **mobile Safari**, not
+Chrome (`lib/pipeline/lod.ts`):
+
+| Tier | Triangles | Texture | Budget | Used for |
+| --- | --- | --- | --- | --- |
+| `high` | 65k | 2048px | 3 MB | Desktop and tablets on Wi-Fi. Never auto-selected on a phone. |
+| `medium` | 35k | 1024px | 1.4 MB | Default. Fits the iOS WebGL budget alongside the camera texture. |
+| `low` | 12k | 512px | 500 KB | ≤4 GB Android, `Save-Data`, 3G. |
+
+iOS never exposes `navigator.deviceMemory`, so mobile Safari is capped at
+`medium` on merit rather than on a signal that cannot be read. Textures ship as
+WebP inside the `.glb` because `KHR_texture_basisu` is not guaranteed on older
+iOS.
+
+### Surface tracking
+
+WebXR hit-testing is the right tool and is used where it exists. iOS Safari
+ships no WebXR at all — which is most of the diners TasteBuddy will ever see —
+so `lib/ar/plate-tracker.ts` provides the fallback: a vision pass over a 64×48
+downsample of the camera feed that finds the plate directly.
+
+A plate is reliably a large, bright, almost colourless disc against a darker,
+more saturated table. The tracker takes the weighted centroid and second moment
+of that mask, rejects implausible blobs (too small, too large, too elongated),
+and smooths what survives. It locks after six consecutive good frames and holds
+through twenty bad ones, so a shaking hand does not drop the anchor. Tap
+anywhere to place the dish by hand when the surface is glass or a patterned
+tablecloth.
+
+Verify the maths without a camera:
+
+```bash
+npm run verify:tracker
+```
+
+### The AR viewer
+
+The camera feed is a plain `<video>` composited *behind* a transparent WebGL
+canvas rather than uploaded as a texture: the browser composites it for free,
+the feed keeps full frame rate while the renderer is throttled, and phones avoid
+a second full-resolution texture upload per frame.
+
+The allergen warning is rendered **in the scene, anchored to the model** — a
+translucent shell enclosing the food plus a camera-facing banner sprite — not
+merely printed in the surrounding DOM. There is no angle from which the dish
+appears without its warning. The banner is drawn to a 2D canvas and uploaded as
+a texture, so it needs no font fetch and stays crisp over a live camera feed.
+The banner's fill stays fully opaque and only its ring pulses; fading a safety
+warning costs contrast exactly when the diner is trying to read it.
+
+Portions scale physically: **volume** is linear in the portion multiplier, so
+each linear dimension scales with its cube root. A "double portion" is not a
+dish twice as wide.
+
+## Verification
+
+```bash
+npm run build            # production build + TypeScript
+npm run lint             # ESLint, including the React Compiler rules
+npm run typecheck        # tsc --noEmit
+npm run verify:tracker   # plate-detection, hysteresis and projection maths
+```
+
+## Deployment notes
+
+- Camera access requires a **secure context**. The viewer detects an insecure
+  origin and says so rather than failing silently.
+- `next.config.ts` sets `Permissions-Policy: camera=(self)`, so the rear camera
+  is available to TasteBuddy and to nothing embedded in it.
+- Set `GENERATOR_WEBHOOK_SECRET` in production. The development default is not
+  a secret, and callbacks with an invalid signature are rejected with a 401.

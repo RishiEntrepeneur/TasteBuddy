@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/*
+ * TasteBuddy design tokens.
+ *
+ * Minimalist by intent: one neutral ramp, one accent that each restaurant
+ * overrides from its branding row, and a single danger colour reserved for
+ * allergen warnings so the signal never competes with decoration.
+ */
+
+@theme {
+  --color-surface: #ffffff;
+  --color-surface-muted: #f6f5f4;
+  --color-surface-raised: #ffffff;
+  --color-border: #e7e5e4;
+  --color-ink: #1c1917;
+  --color-ink-muted: #78716c;
+  --color-accent: #e07a3f;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-safe: #15803d;
+
+  --radius-card: 1rem;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-surface: #0c0a09;
+    --color-surface-muted: #1c1917;
+    --color-surface-raised: #171412;
+    --color-border: #292524;
+    --color-ink: #fafaf9;
+    --color-ink-muted: #a8a29e;
+    --color-danger-soft: #2a1111;
+  }
+}
+
+:root {
+  color-scheme: light dark;
+  /* Overridden per restaurant from its branding row. */
+  --brand-accent: var(--color-accent);
+  --brand-primary: var(--color-ink);
+}
+
+html,
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* The AR view takes over the viewport; never let the page rubber-band. */
+  overscroll-behavior-y: none;
+}
+
+/* Respect the notch and the home indicator on iOS. */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/*
+ * Portion slider.
+ *
+ * Styled by hand rather than with a headless library: it is the one control a
+ * diner touches constantly, and a native `input[type=range]` keeps the
+ * accessibility semantics and the 44px touch target for free.
+ */
+.portion-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2.75rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.portion-slider::-webkit-slider-runnable-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.portion-slider::-moz-range-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.portion-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: -0.6875rem;
+  border-radius: 999px;
+  background: var(--brand-accent);
+  border: 3px solid var(--color-surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+
+.portion-slider::-moz-range-thumb {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--brand-accent);
+  border: 3px solid var(--color-surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+
+.portion-slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/*
+ * Attention pulses.
+ *
+ * `tb-pulse` fades a whole element and is only for decorative chrome such as
+ * the tracking reticle.
+ *
+ * The allergen banner uses `tb-alert-pulse` instead, which animates the ring
+ * around the banner and leaves the fill fully opaque. Fading a safety warning
+ * in and out costs contrast at the trough exactly when the diner is trying to
+ * read which allergen it names.
+ */
+@keyframes tb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.tb-pulse {
+  animation: tb-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tb-alert-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgb(220 38 38 / 0.65),
+      0 4px 12px rgb(0 0 0 / 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 10px rgb(220 38 38 / 0),
+      0 4px 12px rgb(0 0 0 / 0.35);
+  }
+}
+
+.tb-alert-pulse {
+  animation: tb-alert-pulse 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-pulse,
+  .tb-alert-pulse {
+    animation: none;
+  }
+}
