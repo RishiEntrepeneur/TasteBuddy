@@ -1,35 +1,123 @@
-<svg xmlns="http://w3.org" viewBox="0 0 750 200" width="100%" height="100%">
-  <!-- Bright Clean White Background -->
-  <rect width="750" height="200" fill="#FFFFFF"/>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TasteBuddy Brand Showcase</title>
+    <!-- Premium modern font import from Google Fonts -->
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;800&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; 
+            background-color: #F8FAFC; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+        }
+        .canvas { 
+            width: 660px; 
+            height: 200px; 
+            background: #FFFFFF; 
+            border-radius: 28px; 
+            display: flex; 
+            align-items: center; 
+            padding: 0 45px; 
+            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.06); 
+            border: 1px solid #E2E8F0; 
+        }
+        
+        /* Premium Vector Culinary Mark Container */
+        .logo-mark { 
+            position: relative; 
+            width: 120px; 
+            height: 120px; 
+            margin-right: 30px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        
+        /* Exact teardrop leaf geometries utilizing unique border-radius structures */
+        .flavor-leaf { 
+            position: absolute; 
+            width: 48px; 
+            height: 72px; 
+            border-radius: 0% 100% 0% 100%; /* Creates a true natural organic leaf contour */
+            transform-origin: bottom center;
+        }
+        
+        /* Leaf 1: Appetizing Taste Element (Sunset Pink to Crimson Gradient) */
+        .l1 { 
+            background: linear-gradient(180deg, #FF2E93, #FF4E00); 
+            transform: rotate(-35deg) translate(-12px, -8px);
+            z-index: 1; 
+        }
+        
+        /* Leaf 2: Clean Technology Buddy Element (Vibrant Cyan to Teal Gradient) */
+        .l2 { 
+            background: linear-gradient(180deg, #00DF89, #00B4D8); 
+            transform: rotate(35deg) translate(12px, -8px);
+            opacity: 0.9;
+            z-index: 2; 
+        }
 
-  <!-- Simple Multi-Color Overlapping Flavor Drops -->
-  <g transform="translate(60, 40)">
-    <defs>
-      <linearGradient id="pinkGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#FF2E93" />
-        <stop offset="100%" stop-color="#FF8A00" />
-      </linearGradient>
-      <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#00DF89" />
-        <stop offset="100%" stop-color="#00B4D8" />
-      </linearGradient>
-    </defs>
+        /* Leaf 3: Core Flavor Fusion Element (Bright Sun Gold Gradient Overlay) */
+        .l3 {
+            background: linear-gradient(180deg, #FACC15, #F97316);
+            transform: rotate(0deg) translate(0px, -18px);
+            width: 42px;
+            height: 64px;
+            opacity: 0.95;
+            z-index: 3;
+        }
+        
+        /* Typography Suite Configuration */
+        .text-area { 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .title { 
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif; 
+            font-size: 62px; 
+            font-weight: 800; 
+            color: #0F172A; 
+            letter-spacing: -2.5px; 
+            line-height: 1; 
+            margin: 0; 
+        }
+        .title span { 
+            color: #64748B; 
+            font-weight: 400; 
+            letter-spacing: -1px; 
+            padding-left: 4px; 
+        }
+        .subtitle { 
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif; 
+            font-size: 11px; 
+            font-weight: 800; 
+            color: #94A3B8; 
+            letter-spacing: 6px; 
+            margin-top: 12px; 
+            text-transform: uppercase; 
+        }
+    </style>
+</head>
+<body>
 
-    <!-- Drop 1: Flavor / Appetite (Pink-Orange) -->
-    <path d="M 60 20 C 90 20, 110 50, 60 110 C 10 50, 30 20, 60 20 Z" fill="url(#pinkGrad)" transform="rotate(-30 60 65)" />
-    
-    <!-- Drop 2: Freshness / Ingredients (Green-Blue) -->
-    <path d="M 60 20 C 90 20, 110 50, 60 110 C 10 50, 30 20, 60 20 Z" fill="url(#greenGrad)" transform="rotate(30 60 65)" opacity="0.85" />
-    
-    <!-- The overlapping intersection creates a bright neon leaf directly in the center -->
-  </g>
+    <div class="canvas">
+        <div class="logo-mark">
+            <div class="flavor-leaf l1"></div>
+            <div class="flavor-leaf l3"></div>
+            <div class="flavor-leaf l2"></div>
+        </div>
+        <div class="text-area">
+            <h1 class="title">Taste<span>Buddy</span></h1>
+            <div class="subtitle">The AR Dining App</div>
+        </div>
+    </div>
 
-  <!-- Typography: Modern, Premium Rounded Sans-Serif -->
-  <g transform="translate(225, 122)">
-    <text font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-size="64" font-weight="800" fill="#0F172A" letter-spacing="-2">Taste</text>
-    <text x="165" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-size="64" font-weight="300" fill="#475569" letter-spacing="-1">Buddy</text>
-    
-    <!-- Subtitle -->
-    <text y="36" x="4" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-size="12" font-weight="700" fill="#94A3B8" letter-spacing="6">THE AR DINING APP</text>
-  </g>
-</svg>
+</body>
+</html>
