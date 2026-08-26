@@ -516,7 +516,7 @@ function ARChrome({
       {item.hasAllergenConflict ? (
         <div
           role="alert"
-          className="safe-top pointer-events-none absolute inset-x-0 top-16 z-20 mx-4 rounded-xl border-2 border-white/85 bg-danger px-4 py-3 text-white shadow-lg tb-alert-pulse"
+          className="safe-top pointer-events-none absolute inset-x-0 top-16 z-20 mx-4 rounded-xl border-2 border-white/85 bg-[var(--color-ar-alert)] px-4 py-3 text-white shadow-lg tb-alert-pulse"
         >
           <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide">
             <ShieldAlert className="size-4 shrink-0" aria-hidden />
@@ -559,7 +559,10 @@ function ARChrome({
               </>
             ) : (
               <>
-                <CameraOff className="mx-auto size-8 text-danger" aria-hidden />
+                <CameraOff
+                  className="mx-auto size-8 text-[var(--color-ar-alert-ink)]"
+                  aria-hidden
+                />
                 <p className="mt-4 text-base font-medium">
                   {cameraStatus === "denied"
                     ? "Camera access blocked"

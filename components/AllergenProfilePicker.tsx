@@ -89,7 +89,7 @@ export function AllergenProfilePicker({
                   className={[
                     "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition",
                     active
-                      ? "border-danger bg-danger text-white"
+                      ? "border-danger bg-danger text-[var(--color-on-danger)]"
                       : "border-border text-ink-muted hover:border-ink hover:text-ink",
                   ].join(" ")}
                 >

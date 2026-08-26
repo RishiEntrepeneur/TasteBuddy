@@ -36,6 +36,19 @@ interface AllergenWarningOverlayProps {
   reducedMotion: boolean;
 }
 
+/*
+ * Alert colours for the AR scene, fixed rather than read from the theme.
+ *
+ * These composite over a live camera feed, so there is no app ground behind
+ * them to adapt to. Holding them constant also keeps white-on-fill at 6.82:1
+ * in both themes; the lifted dark-mode terracotta would drop it to 2.79:1.
+ * On dark scenes it is the white outline, not the fill, that carries the
+ * warning — white reads at 11:1 or better against dark wood.
+ */
+const ALERT_FILL = "#9c3b2e";
+const ALERT_FILL_RGB = "156, 59, 46";
+const ALERT_OUTLINE = "#eab3a3";
+
 const BANNER_WIDTH = 512;
 const BANNER_HEIGHT = 128;
 
@@ -49,7 +62,7 @@ function drawBanner(
 
   // Rounded plate behind the text, so it reads against any background.
   const radius = 26;
-  context.fillStyle = "rgba(190, 18, 18, 0.94)";
+  context.fillStyle = `rgba(${ALERT_FILL_RGB}, 0.94)`;
   context.beginPath();
   context.moveTo(radius, 0);
   context.lineTo(width - radius, 0);
@@ -142,7 +155,11 @@ export function AllergenWarningOverlay({
 
     const material = shell.current?.material;
     if (material instanceof THREE.MeshBasicMaterial) {
-      material.opacity = 0.2 + pulse * 0.22;
+      // Terracotta carries less chroma than the red it replaced, so it tints
+      // the model less at the same alpha. The range is lifted to keep the
+      // wash as legible over a camera feed as it was before, while staying
+      // translucent enough to read the dish underneath.
+      material.opacity = 0.26 + pulse * 0.24;
     }
 
     if (sprite.current) {
@@ -163,9 +180,9 @@ export function AllergenWarningOverlay({
       <mesh ref={shell} position={[0, radius * 0.5, 0]}>
         <sphereGeometry args={[radius * 1.12, 24, 16]} />
         <meshBasicMaterial
-          color="#dc2626"
+          color={ALERT_FILL}
           transparent
-          opacity={0.3}
+          opacity={0.36}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
@@ -175,10 +192,10 @@ export function AllergenWarningOverlay({
       <mesh position={[0, radius * 0.5, 0]}>
         <sphereGeometry args={[radius * 1.14, 24, 16]} />
         <meshBasicMaterial
-          color="#fca5a5"
+          color={ALERT_OUTLINE}
           wireframe
           transparent
-          opacity={0.5}
+          opacity={0.62}
           depthWrite={false}
         />
       </mesh>

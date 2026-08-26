@@ -28,15 +28,41 @@
   --color-sage-soft: #ebefe4;
 
   /*
-   * Terracotta crimson — warnings only, never decoration. 6.60:1 on
-   * alabaster and 6.82:1 under white. Deliberately quieter than the AR
-   * overlay's red, which has to survive a live camera feed.
+   * Terracotta crimson — the single alert colour, warnings only, never
+   * decoration. 6.60:1 on alabaster, 6.82:1 under white.
    */
   --color-terracotta: #9c3b2e;
   --color-terracotta-soft: #f9ede9;
 
-  --color-danger: #dc2626;
-  --color-danger-soft: #fef2f2;
+  /*
+   * `danger` is the semantic alias, not a second colour. It resolves through
+   * the primitive above, so the dark override below only has to shift one
+   * value and every alert surface in the app follows.
+   */
+  --color-danger: var(--color-terracotta);
+  --color-danger-soft: var(--color-terracotta-soft);
+
+  /*
+   * Foreground for a *solid* danger fill. This has to flip with the theme:
+   * white on the lifted dark terracotta is only 2.79:1, which would fail on
+   * exactly the filled badges that carry an allergen warning.
+   *   light  white    on #9C3B2E  6.82:1
+   *   dark   obsidian on #D98570  6.28:1
+   */
+  --color-on-danger: #ffffff;
+
+  /*
+   * AR overlay alerts, deliberately fixed in both themes.
+   *
+   * The AR chrome composites over a live camera feed, not over the app's
+   * ground — there is no theme behind it to adapt to, and letting these shift
+   * would drop white-on-fill to 2.79:1 the moment a diner's phone was in dark
+   * mode. `ar-alert` is the banner fill under white text (6.82:1); `ar-alert-ink`
+   * is alert text on the black camera scrim (7.09:1 on black).
+   */
+  --color-ar-alert: #9c3b2e;
+  --color-ar-alert-ink: #d98570;
+
   --color-safe: #15803d;
 
   --radius-card: 1rem;
@@ -62,12 +88,15 @@
     --color-border: #292524;
     --color-ink: #fafaf9;
     --color-ink-muted: #a8a29e;
-    --color-danger-soft: #2a1111;
     /* The accents lift so they keep their contrast against a dark ground. */
     --color-sage: #a3b18a;
     --color-sage-soft: #1e241a;
+    /* Shifting the primitive carries `danger` and `danger-soft` with it. */
     --color-terracotta: #d98570;
     --color-terracotta-soft: #2a1712;
+    /* Solid fills flip their foreground rather than their fill. */
+    --color-on-danger: #1c1917;
+    /* --color-ar-alert / --color-ar-alert-ink are intentionally NOT lifted. */
   }
 }
 
