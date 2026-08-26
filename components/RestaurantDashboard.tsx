@@ -247,7 +247,6 @@ export function RestaurantDashboard({
         <TasteBuddyARViewer
           item={arItem}
           portion={arItem.appliedPortion}
-          accentColor={restaurant.branding.accentColor}
           onClose={() => setArItemId(null)}
         />
       ) : null}

@@ -42,12 +42,11 @@ interface AllergenWarningOverlayProps {
  * These composite over a live camera feed, so there is no app ground behind
  * them to adapt to. Holding them constant also keeps white-on-fill at 6.82:1
  * in both themes; the lifted dark-mode terracotta would drop it to 2.79:1.
- * On dark scenes it is the white outline, not the fill, that carries the
- * warning — white reads at 11:1 or better against dark wood.
+ * On dark scenes it is the banner's white border, not the fill, that carries
+ * the warning — white reads at 11:1 or better against dark wood.
  */
 const ALERT_FILL = "#9c3b2e";
 const ALERT_FILL_RGB = "156, 59, 46";
-const ALERT_OUTLINE = "#eab3a3";
 
 const BANNER_WIDTH = 512;
 const BANNER_HEIGHT = 128;
@@ -101,6 +100,7 @@ export function AllergenWarningOverlay({
   reducedMotion,
 }: AllergenWarningOverlayProps) {
   const shell = useRef<THREE.Mesh>(null);
+  const halo = useRef<THREE.Mesh>(null);
   const sprite = useRef<THREE.Sprite>(null);
   const { invalidate } = useThree();
 
@@ -159,7 +159,12 @@ export function AllergenWarningOverlay({
       // the model less at the same alpha. The range is lifted to keep the
       // wash as legible over a camera feed as it was before, while staying
       // translucent enough to read the dish underneath.
-      material.opacity = 0.26 + pulse * 0.24;
+      material.opacity = 0.14 + pulse * 0.14;
+    }
+
+    const haloMaterial = halo.current?.material;
+    if (haloMaterial instanceof THREE.MeshBasicMaterial) {
+      haloMaterial.opacity = 0.62 + pulse * 0.34;
     }
 
     if (sprite.current) {
@@ -176,27 +181,42 @@ export function AllergenWarningOverlay({
 
   return (
     <group renderOrder={10}>
-      {/* Translucent shell over the food itself. */}
-      <mesh ref={shell} position={[0, radius * 0.5, 0]}>
-        <sphereGeometry args={[radius * 1.12, 24, 16]} />
+      {/*
+        A dome that hugs the plate rather than a sphere that encloses it.
+        The enclosing form was readable over a featureless blob, but over real
+        dish geometry it simply hid the food — and a diner who cannot see the
+        dish has lost the reason to open AR at all.
+      */}
+      <mesh ref={shell} position={[0, 0.002, 0]} scale={[1, 0.44, 1]}>
+        <sphereGeometry
+          args={[radius * 1.08, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2]}
+        />
         <meshBasicMaterial
           color={ALERT_FILL}
           transparent
-          opacity={0.36}
+          opacity={0.22}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Hard outline so the warning survives a bright, blown-out camera feed. */}
-      <mesh position={[0, radius * 0.5, 0]}>
-        <sphereGeometry args={[radius * 1.14, 24, 16]} />
+      {/*
+        The halo does the work the shell used to. It lies on the surface, so it
+        is unmissable from any angle and occludes nothing.
+      */}
+      <mesh
+        ref={halo}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.004, 0]}
+        renderOrder={11}
+      >
+        <ringGeometry args={[radius * 1.1, radius * 1.3, 56]} />
         <meshBasicMaterial
-          color={ALERT_OUTLINE}
-          wireframe
+          color={ALERT_FILL}
           transparent
-          opacity={0.62}
+          opacity={0.9}
           depthWrite={false}
+          side={THREE.DoubleSide}
         />
       </mesh>
 

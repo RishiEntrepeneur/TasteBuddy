@@ -1,9 +1,10 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { Component, useMemo, useRef, type ReactNode } from "react";
+import { Component, useEffect, useMemo, type ReactNode } from "react";
 import * as THREE from "three";
+
+import { buildDish } from "@/lib/ar/dish-geometry";
 
 /**
  * The dish mesh.
@@ -16,12 +17,12 @@ import * as THREE from "three";
 
 interface DishModelProps {
   url: string | null;
+  /** Dish name, plus its description when there is one — picks the recipe. */
+  text: string;
   /** World diameter to fit the dish into, in metres. */
   targetDiameter: number;
   /** Portion multiplier. Volume is linear in this, so length goes as its cube root. */
   portion: number;
-  /** Tint used by the procedural fallback. */
-  accentColor: string;
 }
 
 /** Fits an object's bounding box into `targetDiameter` on its longest axis. */
@@ -80,45 +81,28 @@ function GltfDish({
 }
 
 /**
- * Procedural stand-in: a shallow bowl of food on the plate.
+ * Procedural stand-in, built from `lib/ar/dish-geometry`.
  *
- * Intentionally abstract. It reads as "a serving of this size" without
- * pretending to be a photoreal render of a dish we have not generated yet.
+ * Composed per dish rather than shown as one generic shape: a diner looking at
+ * an anonymous dome learns nothing about what is coming, and the portion slider
+ * has nothing meaningful to scale. The recipe is deterministic, so a dish plates
+ * identically every time it is opened.
  */
-function ProceduralDish({
-  targetDiameter,
-  portion,
-  accentColor,
-}: DishModelProps) {
-  const group = useRef<THREE.Group>(null);
-  const radius = (targetDiameter / 2) * Math.cbrt(portion);
+function ProceduralDish({ text, targetDiameter, portion }: DishModelProps) {
+  const built = useMemo(() => buildDish({ text }), [text]);
 
-  useFrame((_, delta) => {
-    // A slow turn makes the volume readable from a static camera.
-    if (group.current) group.current.rotation.y += delta * 0.35;
-  });
+  // Built imperatively, so nothing else will release it.
+  useEffect(() => built.dispose, [built]);
 
-  const color = useMemo(() => new THREE.Color(accentColor), [accentColor]);
+  const baseScale = useMemo(
+    () => fitScale(built.group, targetDiameter),
+    [built, targetDiameter],
+  );
 
+  // Volume scales with the portion, so each linear dimension takes its cube
+  // root — the same rule the generated meshes follow.
   return (
-    <group ref={group}>
-      <mesh position={[0, radius * 0.42, 0]}>
-        <sphereGeometry
-          args={[radius * 0.78, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2]}
-        />
-        <meshStandardMaterial color={color} roughness={0.72} metalness={0.05} />
-      </mesh>
-      <mesh position={[0, radius * 0.06, 0]}>
-        <cylinderGeometry
-          args={[radius * 0.92, radius * 0.84, radius * 0.12, 48]}
-        />
-        <meshStandardMaterial
-          color="#f5f5f4"
-          roughness={0.35}
-          metalness={0.02}
-        />
-      </mesh>
-    </group>
+    <primitive object={built.group} scale={baseScale * Math.cbrt(portion)} />
   );
 }
 

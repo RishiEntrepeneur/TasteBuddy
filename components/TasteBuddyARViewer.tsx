@@ -65,13 +65,23 @@ import type { EvaluatedMenuItem, LodTier } from "@/lib/types";
  */
 
 /** Where the plate plane sits when tracking has not measured it, in metres. */
-const FALLBACK_DISTANCE_M = 0.55;
+const FALLBACK_DISTANCE_M = 0.75;
 const CAMERA_FOV_DEGREES = 55;
+
+/**
+ * Preview tilt, in radians, used only before the plate is tracked.
+ *
+ * A plate is a flat disc: viewed along the camera axis it collapses to a
+ * sliver. Once tracking locks, the measured anchor gives the real angle and
+ * this drops to zero.
+ */
+// Positive rotates the plate's top surface toward the camera (Y toward +Z);
+// negative tips it away and shows the underside of the bowl.
+const PREVIEW_TILT = 0.36;
 
 interface TasteBuddyARViewerProps {
   item: EvaluatedMenuItem;
   portion: number;
-  accentColor: string;
   onClose: () => void;
 }
 
@@ -82,7 +92,6 @@ interface TasteBuddyARViewerProps {
 interface SceneProps {
   item: EvaluatedMenuItem;
   portion: number;
-  accentColor: string;
   anchor: PlateObservation | null;
   trackingState: TrackingState;
   assetUrl: string | null;
@@ -98,7 +107,6 @@ interface SceneProps {
 function AnchoredDish({
   item,
   portion,
-  accentColor,
   anchor,
   trackingState,
   assetUrl,
@@ -111,10 +119,14 @@ function AnchoredDish({
     const aspect = size.height > 0 ? size.width / size.height : 1;
 
     if (!anchor) {
-      // Nothing tracked yet: hold the dish centred, slightly low, at arm's
-      // length, sized from its own real-world measurement.
+      // Nothing tracked yet. Distance is set by what fits: a portrait frame
+      // spans only ~0.48x the depth in metres, so a 28cm plate needs about
+      // 0.75m of it. The drop stays modest and `PREVIEW_TILT` supplies the
+      // downward angle instead — with no tracking there is no device pose to
+      // take it from, and dropping the dish far enough to see into it would
+      // push it off the bottom of the frame.
       return {
-        position: [0, -0.08, -FALLBACK_DISTANCE_M],
+        position: [0, -0.16, -FALLBACK_DISTANCE_M],
         radius: (item.asset?.realWorldScaleM ?? 0.22) / 2,
       };
     }
@@ -157,14 +169,16 @@ function AnchoredDish({
     return 2 * halfHeight * aspect;
   }, [size.width, size.height]);
 
+  const tilt = trackingState === "locked" ? 0 : PREVIEW_TILT;
+
   return (
-    <group ref={group} position={pose.position}>
+    <group ref={group} position={pose.position} rotation={[tilt, 0, 0]}>
       <Suspense fallback={null}>
         <DishModel
           url={assetUrl}
+          text={`${item.name} ${item.description}`}
           targetDiameter={targetDiameter}
           portion={portion}
-          accentColor={accentColor}
         />
       </Suspense>
 
@@ -233,7 +247,6 @@ function getServerReducedMotion(): boolean {
 export function TasteBuddyARViewer({
   item,
   portion,
-  accentColor,
   onClose,
 }: TasteBuddyARViewerProps) {
   const camera = useCameraStream();
@@ -425,7 +438,6 @@ export function TasteBuddyARViewer({
             <AnchoredDish
               item={item}
               portion={portion}
-              accentColor={accentColor}
               anchor={anchor}
               trackingState={trackingState}
               assetUrl={assetUrl}
