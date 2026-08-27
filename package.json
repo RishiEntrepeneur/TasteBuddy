@@ -15,7 +15,8 @@
     "verify:contrast": "tsx scripts/verify-brand-contrast.ts",
     "try:menu": "tsx scripts/try-menu.ts",
     "verify:shapes": "tsx scripts/verify-dish-shapes.ts",
-    "demo:build": "next build && node demo/build.mjs"
+    "demo:build": "next build && node demo/build.mjs",
+    "verify:picture": "tsx scripts/verify-dish-picture.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

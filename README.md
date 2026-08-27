@@ -137,6 +137,7 @@ npm run build
 npm run verify:tracker    # 62 checks on the plate-finding vision pass
 npm run verify:contrast   # every colour that carries text, measured
 npm run verify:shapes     # the recipe each dish name picks
+npm run verify:picture    # what survives out of a dish name into a prompt
 ```
 
 `verify:contrast` exists because an alert nobody can read is worse than no
@@ -166,6 +167,48 @@ reading by vertical position alone attaches every one of them to the wrong row.
 
 Drop your own photo in and it prints what came back for you to read. Add a
 `your-menu.expected.json` beside it and it scores that too.
+
+## The picture at the top of a dish
+
+Two things can fill it, and they arrive in that order.
+
+The **3D model** is built on the device out of the dish's own words —
+`lib/ar/dish-geometry` picks a shape from the name, then from how the dish is
+served, then from what is in it. It is instant, it works offline, and it will
+never look like food.
+
+The **drawing** is fetched from `/api/dish-image`, which asks
+[Pollinations](https://pollinations.ai) for one. Free, no key, no account. It
+fades in over the model when it arrives; if it never arrives the model is
+already there and the diner notices nothing.
+
+It is a *drawing*, deliberately, and the prompt says so four different ways.
+Everything else in this app is built so a guess cannot pass for a fact, and an
+image is the easiest place to lose that: a photorealistic plate sitting
+directly above a line about peanuts gets read as **this restaurant's plate**,
+which nobody has seen. A drawing is obviously a drawing, and the caption says
+it twice.
+
+A dish the model did not recognise gets neither. Empty plate, and a line
+saying why.
+
+The route proxies rather than linking straight out, which buys three things:
+the diner's browser never talks to the drawing service, so their address does
+not go with it; the response carries this app's own year-long immutable cache
+header, so a CDN draws `masala dosa` once for everybody; and a failure arrives
+as this app's failure, which the screen already knows how to fall back from.
+Only the dish's name leaves, and it came off a printed menu in the first place.
+
+`cleanDishName` is not decoration. That name reached the app off a photograph
+of a menu a stranger printed, by way of a model, and is about to be pasted into
+an instruction for a second generator. Letters, marks, digits and the
+punctuation real dish names contain survive; newlines and `--flags` do not.
+`npm run verify:picture` holds it.
+
+```bash
+DISH_IMAGES=off                  # no drawings; the 3D model only
+DISH_IMAGE_HOST=https://…/       # a different generator, or a stand-in
+```
 
 ## The offline demo
 

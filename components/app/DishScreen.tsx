@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { VerdictPill } from "@/components/app/Verdict";
-import { DishPreview3D } from "@/components/dish/DishPreview3D";
+import { DishFigure } from "@/components/dish/DishFigure";
 import { ALLERGEN_CATALOG } from "@/lib/allergens";
 import { clashSentence, clashesWith, verdictFor } from "@/lib/dish/clash";
 import { crossContactFor, listAllergens } from "@/lib/dish/cross-contact";
@@ -71,8 +71,9 @@ export function DishScreen({
 
       <div className="px-4">
         <section className="card overflow-hidden rise">
-          <DishPreview3D
+          <DishFigure
             name={`${dish.printedName} ${dish.englishName}`.trim()}
+            drawAs={dish.englishName || dish.printedName}
             description={dish.whatItIs}
             servedAs={dish.servedAs}
             recognised={dish.recognised}
