@@ -12,6 +12,7 @@ import {
   LogOut,
   Pencil,
   Plus,
+  Settings2,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -24,6 +25,8 @@ import {
 } from "@/components/admin/DishForm";
 import { AccessKeys } from "@/components/admin/AccessKeys";
 import { MenuImport } from "@/components/admin/MenuImport";
+import { NEW_VENUE, VenueForm, type VenueDraftForm } from "@/components/admin/VenueForm";
+import { VenueSettings } from "@/components/admin/VenueSettings";
 import { formatPrice } from "@/lib/nutrition";
 import type { MenuCategory, MenuItem, Restaurant } from "@/lib/types";
 
@@ -63,7 +66,11 @@ export function MenuEditor() {
   const [venue, setVenue] = useState<Venue | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [switching, setSwitching] = useState(false);
-  const [showKeys, setShowKeys] = useState(false);
+  const [isOperator, setIsOperator] = useState(false);
+  const [panel, setPanel] = useState<"keys" | "venue" | null>(null);
+  const [newVenue, setNewVenue] = useState<VenueDraftForm | null>(null);
+  const [venueError, setVenueError] = useState<string | null>(null);
+  const [venueErrorField, setVenueErrorField] = useState<string | null>(null);
   const [data, setData] = useState<Loaded | null>(null);
   const [editing, setEditing] = useState<DishDraft | null>(null);
   const [importing, setImporting] = useState(false);
@@ -82,10 +89,12 @@ export function MenuEditor() {
           signedIn: boolean;
           restaurant?: Venue;
           venues?: Venue[];
+          isOperator?: boolean;
         }) => {
           if (controller.signal.aborted) return;
           setVenue(body.signedIn ? (body.restaurant ?? null) : null);
           setVenues(body.venues ?? []);
+          setIsOperator(body.isOperator === true);
           setChecking(false);
         },
       )
@@ -210,7 +219,8 @@ export function MenuEditor() {
     setData(null);
     setEditing(null);
     setImporting(false);
-    setShowKeys(false);
+    setPanel(null);
+    setNewVenue(null);
     setNotice(null);
     try {
       const response = await fetch("/api/admin/session", {
@@ -225,6 +235,55 @@ export function MenuEditor() {
     }
   }, []);
 
+  /** Creates a venue and moves the session onto it, ready for its menu. */
+  const createVenue = useCallback(async () => {
+    if (!newVenue) return;
+    setSaving(true);
+    setVenueError(null);
+    setVenueErrorField(null);
+    try {
+      const response = await fetch("/api/admin/venues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newVenue),
+      });
+      const body = (await response.json()) as {
+        venue?: Venue;
+        warnings?: string[];
+        field?: string;
+        error?: { message?: string };
+      };
+      if (!response.ok || !body.venue) {
+        setVenueErrorField(body.field ?? null);
+        throw new Error(
+          body.error?.message ?? "That venue could not be created.",
+        );
+      }
+      setVenues((current) =>
+        [...current, body.venue as Venue].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      );
+      setVenue(body.venue);
+      setData(null);
+      setNewVenue(null);
+      setNotice(
+        [
+          `${body.venue.name} is live. Add its menu, then issue them a key.`,
+          ...(body.warnings ?? []),
+        ].join(" "),
+      );
+    } catch (error) {
+      setVenueError(
+        error instanceof Error
+          ? error.message
+          : "That venue could not be created.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [newVenue]);
+
   /* ---- sign in ---------------------------------------------------------- */
 
   if (checking) {
@@ -238,9 +297,10 @@ export function MenuEditor() {
   if (!venue) {
     return (
       <SignIn
-        onSignedIn={(next, reachable) => {
+        onSignedIn={(next, reachable, operator) => {
           setVenue(next);
           setVenues(reachable);
+          setIsOperator(operator);
         }}
       />
     );
@@ -295,6 +355,25 @@ export function MenuEditor() {
                         </button>
                       </li>
                     ))}
+                    {isOperator ? (
+                      <li className="border-t border-border">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSwitching(false);
+                            setPanel(null);
+                            setEditing(null);
+                            setImporting(false);
+                            setNotice(null);
+                            setNewVenue({ ...NEW_VENUE });
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-ink-muted transition hover:bg-surface-muted hover:text-ink"
+                        >
+                          <Plus className="size-3.5" aria-hidden />
+                          Onboard a restaurant
+                        </button>
+                      </li>
+                    ) : null}
                   </ul>
                 ) : null}
               </div>
@@ -309,9 +388,23 @@ export function MenuEditor() {
             <button
               type="button"
               onClick={() => {
-                setShowKeys(true);
+                setPanel("venue");
                 setEditing(null);
                 setImporting(false);
+                setNewVenue(null);
+              }}
+              className="flex items-center gap-1.5 transition hover:text-ink"
+            >
+              <Settings2 className="size-3.5" aria-hidden />
+              Venue
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPanel("keys");
+                setEditing(null);
+                setImporting(false);
+                setNewVenue(null);
               }}
               className="flex items-center gap-1.5 transition hover:text-ink"
             >
@@ -350,8 +443,81 @@ export function MenuEditor() {
           </p>
         ) : null}
 
-        {showKeys ? (
-          <AccessKeys onClose={() => setShowKeys(false)} />
+        {newVenue ? (
+          <section className="mt-5 rounded-card border border-border bg-surface-raised p-5">
+            <h2 className="font-display text-xl text-ink">
+              Onboard a restaurant
+            </h2>
+            <p className="mt-1 mb-5 max-w-prose text-sm leading-relaxed text-ink-muted">
+              This creates the venue and opens its menu. You keep access until
+              you hand it over.
+            </p>
+            <VenueForm
+              draft={newVenue}
+              isNew
+              saving={saving}
+              error={venueError}
+              errorField={venueErrorField}
+              onChange={setNewVenue}
+              onSave={() => void createVenue()}
+              onCancel={() => {
+                setNewVenue(null);
+                setVenueError(null);
+                setVenueErrorField(null);
+              }}
+            />
+          </section>
+        ) : panel === "venue" ? (
+          data ? (
+            <VenueSettings
+              draft={{
+                slug: data.restaurant.slug,
+                name: data.restaurant.name,
+                tagline: data.restaurant.tagline,
+                currency: data.restaurant.currency,
+                locale: data.restaurant.locale,
+                primaryColor: data.restaurant.branding.primaryColor,
+                accentColor: data.restaurant.branding.accentColor,
+              }}
+              venueName={venue.name}
+              canLeave={venues.length > 1}
+              onSaved={(name) => {
+                setVenue((current) => (current ? { ...current, name } : current));
+                setVenues((current) =>
+                  current.map((entry) =>
+                    entry.id === venue.id ? { ...entry, name } : entry,
+                  ),
+                );
+                reload();
+              }}
+              onLeft={() => {
+                setPanel(null);
+                setNotice(`${venue.name} is handed over.`);
+                // The server moved the session; ask it where we landed.
+                void fetch("/api/admin/session")
+                  .then((r) => r.json())
+                  .then(
+                    (body: {
+                      signedIn: boolean;
+                      restaurant?: Venue;
+                      venues?: Venue[];
+                    }) => {
+                      setVenue(body.signedIn ? (body.restaurant ?? null) : null);
+                      setVenues(body.venues ?? []);
+                      setData(null);
+                    },
+                  );
+              }}
+              onClose={() => setPanel(null)}
+            />
+          ) : (
+            <p className="mt-6 flex items-center gap-2 text-sm text-ink-muted">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Loading
+            </p>
+          )
+        ) : panel === "keys" ? (
+          <AccessKeys onClose={() => setPanel(null)} />
         ) : importing ? (
           <MenuImport
             currency={data?.restaurant.currency ?? "GBP"}
@@ -510,7 +676,7 @@ export function MenuEditor() {
 function SignIn({
   onSignedIn,
 }: {
-  onSignedIn: (venue: Venue, venues: Venue[]) => void;
+  onSignedIn: (venue: Venue, venues: Venue[], isOperator: boolean) => void;
 }) {
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -533,6 +699,7 @@ function SignIn({
             const body = (await response.json()) as {
               restaurant?: Venue;
               venues?: Venue[];
+              isOperator?: boolean;
               error?: { message?: string };
             };
             if (!response.ok || !body.restaurant) {
@@ -540,7 +707,11 @@ function SignIn({
                 body.error?.message ?? "That access key was not recognised.",
               );
             }
-            onSignedIn(body.restaurant, body.venues ?? [body.restaurant]);
+            onSignedIn(
+              body.restaurant,
+              body.venues ?? [body.restaurant],
+              body.isOperator === true,
+            );
           } catch (err) {
             setError(err instanceof Error ? err.message : "Sign-in failed.");
           } finally {

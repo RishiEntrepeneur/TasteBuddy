@@ -1,6 +1,10 @@
 import { isDatabaseConfigured, query } from "@/lib/db/client";
 import { SEED_RESTAURANTS } from "@/lib/db/seed";
-import { seedItemWithEdits, seedItemsWithEdits } from "@/lib/db/seed-overlay";
+import {
+  restaurantOverlay,
+  seedItemWithEdits,
+  seedItemsWithEdits,
+} from "@/lib/db/seed-overlay";
 import {
   type AllergenKey,
   type AllergenSeverity,
@@ -305,10 +309,10 @@ export async function getRestaurant(
   idOrSlug: string,
 ): Promise<Restaurant | null> {
   if (!isDatabaseConfigured()) {
-    return (
-      SEED_RESTAURANTS.find((r) => r.id === idOrSlug || r.slug === idOrSlug) ??
-      null
+    const seeded = SEED_RESTAURANTS.find(
+      (r) => r.id === idOrSlug || r.slug === idOrSlug,
     );
+    return seeded ? (restaurantOverlay().get(seeded.id) ?? seeded) : null;
   }
 
   const rows = await query<RestaurantRow>(
@@ -327,7 +331,11 @@ export async function getRestaurant(
 }
 
 export async function listRestaurants(): Promise<Restaurant[]> {
-  if (!isDatabaseConfigured()) return [...SEED_RESTAURANTS];
+  if (!isDatabaseConfigured()) {
+    return SEED_RESTAURANTS.map(
+      (entry) => restaurantOverlay().get(entry.id) ?? entry,
+    );
+  }
 
   const rows = await query<RestaurantRow>(
     `SELECT ${RESTAURANT_COLUMNS} FROM restaurants ORDER BY name`,

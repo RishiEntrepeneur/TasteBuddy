@@ -42,6 +42,8 @@ export async function GET(): Promise<NextResponse> {
         // Which venue is being viewed, so the list can say what *else* a key
         // reaches rather than repeating where you already are.
         currentVenueId: staff.restaurantId,
+        /** Whether this caller may mint another operator key. */
+        canIssueOperator: staff.isOperator,
         // Which venues this caller may put on a new key. Sent so the form can
         // only offer what the server would accept.
         grantableVenues: staff.venues,
@@ -67,7 +69,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  let payload: { label?: unknown; venueIds?: unknown };
+  let payload: { label?: unknown; venueIds?: unknown; isOperator?: unknown };
   try {
     payload = (await request.json()) as typeof payload;
   } catch {
@@ -91,10 +93,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     : [staff.restaurantId];
 
   try {
+    // Only an operator can mint another operator. Handing a restaurant their
+    // key must never hand them the ability to create venues on the platform,
+    // so this defaults to false and an ordinary key cannot raise it.
+    const asOperator = staff.isOperator && payload.isOperator === true;
+
     const issued = await issueStaffKey(
       label,
       requested,
       staff.venues.map((venue) => venue.id),
+      asOperator,
     );
     if (!issued) {
       return errorResponse(

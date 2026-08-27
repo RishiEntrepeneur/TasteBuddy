@@ -529,3 +529,48 @@ SELECT id, restaurant_id, created_at
 -- to the same question, and the two would drift the first time a key gained a
 -- second venue. Dropping it takes its index with it.
 ALTER TABLE restaurant_staff_keys DROP COLUMN IF EXISTS restaurant_id;
+
+-- ============================================================================
+--  Migration 007 — onboarding a restaurant
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+--  restaurant_staff_keys.is_operator
+--
+--  Venues used to arrive by INSERT, which made onboarding a restaurant a
+--  database task rather than a product one. Creating a venue is now something
+--  a key can be allowed to do.
+--
+--  It is a flag on the key rather than a separate table because it is a
+--  capability, not an identity: the same person signs in the same way and gets
+--  the same editor, and the flag only decides whether "New venue" is there.
+--
+--  Two rules keep it from spreading. A key issued by an operator is not itself
+--  an operator unless that is asked for explicitly, so handing a restaurant
+--  their key never hands them the platform. And creating a venue grants the
+--  creator that one venue, nothing else: an operator with fifty clients still
+--  reaches only the venues actually granted to their key, and can drop a grant
+--  once a venue is handed over.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE restaurant_staff_keys
+  ADD COLUMN IF NOT EXISTS is_operator BOOLEAN NOT NULL DEFAULT false;
+
+-- Venue branding is data, and text gets drawn on it. A colour that cannot
+-- carry text at all is rejected in lib/admin/venue-validation.ts, where the
+-- ratio can actually be measured; the database keeps the cheap format check
+-- it already had. Nothing to add here beyond a note that the two are
+-- deliberately different jobs.
+
+-- Editing a venue touches `updated_at`, which nothing was maintaining.
+CREATE OR REPLACE FUNCTION touch_restaurant_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS restaurants_touch_updated_at ON restaurants;
+CREATE TRIGGER restaurants_touch_updated_at
+  BEFORE UPDATE ON restaurants
+  FOR EACH ROW EXECUTE FUNCTION touch_restaurant_updated_at();

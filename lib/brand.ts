@@ -11,8 +11,12 @@
  * allergen palette was checked against.
  */
 
-const INK = "#1c1917";
-const PAPER = "#ffffff";
+/** The two foregrounds anything in this app is ever drawn in. */
+export const BRAND_INK = "#1c1917";
+export const BRAND_PAPER = "#ffffff";
+
+const INK = BRAND_INK;
+const PAPER = BRAND_PAPER;
 
 function channel(value: number): number {
   const c = value / 255;
@@ -68,11 +72,19 @@ export function readableInk(background: string): string {
   return onInk >= onPaper ? INK : PAPER;
 }
 
-/** Whether a brand colour can carry body-sized text at all (AA is 4.5:1). */
-export function canCarryText(background: string): boolean {
-  const best = Math.max(
+/**
+ * The best contrast a brand colour can manage, against either foreground the
+ * app actually uses. Measured against obsidian rather than pure black, because
+ * obsidian is what gets drawn.
+ */
+export function bestContrast(background: string): number {
+  return Math.max(
     contrastRatio(background, INK) ?? 0,
     contrastRatio(background, PAPER) ?? 0,
   );
-  return best >= 4.5;
+}
+
+/** Whether a brand colour can carry body-sized text at all (AA is 4.5:1). */
+export function canCarryText(background: string): boolean {
+  return bestContrast(background) >= 4.5;
 }

@@ -259,9 +259,11 @@ COMMIT;
 --  issue real venues a random key and give them the plaintext once.
 -- ============================================================================
 
-INSERT INTO restaurant_staff_keys (key_hash, label)
-VALUES (encode(digest('tastebuddy-dev-staff-key', 'sha256'), 'hex'), 'Development key')
-ON CONFLICT (key_hash) DO NOTHING;
+-- An operator key, so the sample deployment can demonstrate onboarding a
+-- venue rather than only editing the two that ship with it.
+INSERT INTO restaurant_staff_keys (key_hash, label, is_operator)
+VALUES (encode(digest('tastebuddy-dev-staff-key', 'sha256'), 'hex'), 'Development key', true)
+ON CONFLICT (key_hash) DO UPDATE SET is_operator = true;
 
 -- The development key reaches both seed venues, so the venue switcher has
 -- something to switch between out of the box.

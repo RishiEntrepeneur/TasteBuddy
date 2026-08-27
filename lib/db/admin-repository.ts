@@ -1,3 +1,4 @@
+import type { VenueDraft } from "@/lib/admin/venue-validation";
 import {
   generateStaffKey,
   hashStaffKey,
@@ -5,7 +6,11 @@ import {
 } from "@/lib/auth/staff-session";
 import { isDatabaseConfigured, query, withTransaction } from "@/lib/db/client";
 import { SEED_MENU_ITEMS, SEED_RESTAURANTS } from "@/lib/db/seed";
-import { deletedItems, menuOverlay } from "@/lib/db/seed-overlay";
+import {
+  deletedItems,
+  menuOverlay,
+  restaurantOverlay,
+} from "@/lib/db/seed-overlay";
 import {
   DEFAULT_PORTION_RANGE,
   type AllergenKey,
@@ -48,6 +53,8 @@ export interface StaffIdentity {
   label: string;
   /** Every venue this key may edit, alphabetical. Never empty. */
   venues: StaffVenue[];
+  /** Whether this key may create venues and mint other operator keys. */
+  isOperator: boolean;
 }
 
 /** Seed mode has no grant table, so the dev key reaches every sample venue. */
@@ -82,6 +89,7 @@ export async function identifyStaffKey(
       keyId: SEED_KEY_ID,
       label: "Development key",
       venues: seedVenues(),
+      isOperator: true,
     };
   }
 
@@ -92,10 +100,12 @@ export async function identifyStaffKey(
   const rows = await query<{
     id: string;
     label: string;
+    is_operator: boolean;
     venues: StaffVenue[] | null;
   }>(
     `SELECT k.id,
             k.label,
+            k.is_operator,
             (SELECT json_agg(json_build_object('id', r.id, 'slug', r.slug, 'name', r.name)
                              ORDER BY r.name)
                FROM staff_key_venues g
@@ -122,7 +132,12 @@ export async function identifyStaffKey(
     [row.id],
   ).catch(() => undefined);
 
-  return { keyId: row.id, label: row.label, venues };
+  return {
+    keyId: row.id,
+    label: row.label,
+    venues,
+    isOperator: row.is_operator,
+  };
 }
 
 /**
@@ -142,7 +157,12 @@ export async function staffContext(
     if (keyId !== SEED_KEY_ID) return null;
     const venues = seedVenues();
     return venues.some((venue) => venue.id === restaurantId)
-      ? { keyId: SEED_KEY_ID, label: "Development key", venues }
+      ? {
+          keyId: SEED_KEY_ID,
+          label: "Development key",
+          venues,
+          isOperator: true,
+        }
       : null;
   }
 
@@ -150,9 +170,11 @@ export async function staffContext(
 
   const rows = await query<{
     label: string;
+    is_operator: boolean;
     venues: StaffVenue[] | null;
   }>(
     `SELECT k.label,
+            k.is_operator,
             (SELECT json_agg(json_build_object('id', r.id, 'slug', r.slug, 'name', r.name)
                              ORDER BY r.name)
                FROM staff_key_venues g
@@ -170,7 +192,12 @@ export async function staffContext(
   const venues = row.venues ?? [];
   if (!venues.some((venue) => venue.id === restaurantId)) return null;
 
-  return { keyId, label: row.label, venues };
+  return {
+    keyId,
+    label: row.label,
+    venues,
+    isOperator: row.is_operator,
+  };
 }
 
 const UUID =
@@ -189,6 +216,7 @@ export interface StaffKeySummary {
   venues: StaffVenue[];
   /** True for the key the viewer is currently signed in with. */
   isCurrent: boolean;
+  isOperator: boolean;
 }
 
 /** Live keys that can reach this venue, newest first. */
@@ -205,6 +233,7 @@ export async function listStaffKeys(
         lastUsedAt: null,
         venues: seedVenues(),
         isCurrent: currentKeyId === SEED_KEY_ID,
+        isOperator: true,
       },
     ];
   }
@@ -214,9 +243,10 @@ export async function listStaffKeys(
     label: string;
     created_at: Date;
     last_used_at: Date | null;
+    is_operator: boolean;
     venues: StaffVenue[] | null;
   }>(
-    `SELECT k.id, k.label, k.created_at, k.last_used_at,
+    `SELECT k.id, k.label, k.created_at, k.last_used_at, k.is_operator,
             (SELECT json_agg(json_build_object('id', r.id, 'slug', r.slug, 'name', r.name)
                              ORDER BY r.name)
                FROM staff_key_venues g2
@@ -236,6 +266,7 @@ export async function listStaffKeys(
     lastUsedAt: row.last_used_at?.toISOString() ?? null,
     venues: row.venues ?? [],
     isCurrent: row.id === currentKeyId,
+    isOperator: row.is_operator,
   }));
 }
 
@@ -245,6 +276,7 @@ export interface IssuedKey {
   /** The only time the plaintext exists outside the holder's hands. */
   key: string;
   venues: StaffVenue[];
+  isOperator: boolean;
 }
 
 /**
@@ -258,6 +290,7 @@ export async function issueStaffKey(
   label: string,
   venueIds: string[],
   allowedVenueIds: string[],
+  isOperator = false,
 ): Promise<IssuedKey | null> {
   const allowed = new Set(allowedVenueIds);
   const granted = [...new Set(venueIds)].filter((id) => allowed.has(id));
@@ -273,10 +306,10 @@ export async function issueStaffKey(
 
   return withTransaction(async (client) => {
     const inserted = await client.query<{ id: string }>(
-      `INSERT INTO restaurant_staff_keys (key_hash, label)
-       VALUES ($1, $2)
+      `INSERT INTO restaurant_staff_keys (key_hash, label, is_operator)
+       VALUES ($1, $2, $3)
        RETURNING id`,
-      [hashStaffKey(normaliseStaffKey(key)), label],
+      [hashStaffKey(normaliseStaffKey(key)), label, isOperator],
     );
 
     const id = inserted.rows[0]?.id;
@@ -297,7 +330,7 @@ export async function issueStaffKey(
       [id],
     );
 
-    return { id, label, key, venues: venues.rows };
+    return { id, label, key, venues: venues.rows, isOperator };
   });
 }
 
@@ -865,5 +898,183 @@ export async function closeImportRun(
     [restaurantId, importId, committedCount],
   ).catch((error) => {
     console.error("[admin-repository] import run not closed", error);
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Venues                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export type CreateVenueOutcome =
+  | { ok: true; venue: StaffVenue }
+  | { ok: false; reason: "slug_taken" | "no_database" };
+
+/**
+ * Creates a venue and grants it to the key that created it.
+ *
+ * The grant is the point: an operator can only ever reach venues their key
+ * holds, so creating one has to hand it over or the person who just onboarded
+ * a restaurant could not open its menu. It grants that one venue and nothing
+ * else, and the grant can be dropped again once the venue is handed over.
+ */
+export async function createRestaurant(
+  draft: VenueDraft,
+  operatorKeyId: string,
+): Promise<CreateVenueOutcome> {
+  if (!isDatabaseConfigured()) return { ok: false, reason: "no_database" };
+  if (!UUID.test(operatorKeyId)) return { ok: false, reason: "no_database" };
+
+  try {
+    return await withTransaction(async (client) => {
+      const inserted = await client.query<StaffVenue>(
+        `INSERT INTO restaurants
+           (slug, name, tagline, currency, locale, primary_color, accent_color)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, slug, name`,
+        [
+          draft.slug,
+          draft.name,
+          draft.tagline,
+          draft.currency,
+          draft.locale,
+          draft.primaryColor,
+          draft.accentColor,
+        ],
+      );
+
+      const venue = inserted.rows[0];
+      if (!venue) throw new Error("venue_not_created");
+
+      await client.query(
+        `INSERT INTO staff_key_venues (key_id, restaurant_id)
+         VALUES ($1::uuid, $2::uuid)`,
+        [operatorKeyId, venue.id],
+      );
+
+      return { ok: true as const, venue };
+    });
+  } catch (error) {
+    // 23505 is the unique index on slug. Worth naming: two venues in a chain
+    // called "The Anchor" is the normal case, not a fault.
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      (error as { code?: unknown }).code === "23505"
+    ) {
+      return { ok: false, reason: "slug_taken" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Updates a venue's name, tagline, currency, locale and branding.
+ *
+ * The slug is not in the list on purpose. It is the web address printed on
+ * every table card in the room, so changing it silently breaks every code a
+ * venue has already put out. Moving a venue to a new address is a job with a
+ * redirect in it, not a text field.
+ */
+export async function updateRestaurant(
+  restaurantId: string,
+  draft: Omit<VenueDraft, "slug">,
+): Promise<boolean> {
+  if (!isDatabaseConfigured()) {
+    const current = restaurantOverlay().get(restaurantId);
+    const base =
+      current ?? SEED_RESTAURANTS.find((entry) => entry.id === restaurantId);
+    if (!base) return false;
+    restaurantOverlay().set(restaurantId, {
+      ...base,
+      name: draft.name,
+      tagline: draft.tagline,
+      currency: draft.currency,
+      locale: draft.locale,
+      branding: {
+        ...base.branding,
+        primaryColor: draft.primaryColor,
+        accentColor: draft.accentColor,
+      },
+    });
+    return true;
+  }
+
+  const rows = await query<{ id: string }>(
+    `UPDATE restaurants
+        SET name = $2, tagline = $3, currency = $4, locale = $5,
+            primary_color = $6, accent_color = $7
+      WHERE id = $1::uuid
+      RETURNING id`,
+    [
+      restaurantId,
+      draft.name,
+      draft.tagline,
+      draft.currency,
+      draft.locale,
+      draft.primaryColor,
+      draft.accentColor,
+    ],
+  );
+  return rows.length > 0;
+}
+
+export type LeaveOutcome =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "last_key" | "last_venue" };
+
+/**
+ * Drops this key's own grant to a venue: the hand-over.
+ *
+ * An operator who onboards fifty restaurants should not end up holding fifty
+ * live grants, so once a venue has its own key the operator steps back out.
+ * Two refusals, both to avoid stranding someone: leaving would take the
+ * venue's last key with it, or it would leave this key reaching nothing and
+ * unable to sign in at all.
+ */
+export async function leaveVenue(
+  keyId: string,
+  restaurantId: string,
+): Promise<LeaveOutcome> {
+  if (!isDatabaseConfigured()) return { ok: false, reason: "not_found" };
+  if (!UUID.test(keyId) || !UUID.test(restaurantId)) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  return withTransaction(async (client) => {
+    const held = await client.query<{ key_id: string }>(
+      `SELECT key_id FROM staff_key_venues
+        WHERE key_id = $1::uuid AND restaurant_id = $2::uuid`,
+      [keyId, restaurantId],
+    );
+    if (held.rows.length === 0) return { ok: false, reason: "not_found" };
+
+    const others = await client.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+         FROM staff_key_venues g
+         JOIN restaurant_staff_keys k ON k.id = g.key_id
+        WHERE g.restaurant_id = $1::uuid
+          AND g.key_id <> $2::uuid
+          AND k.revoked_at IS NULL`,
+      [restaurantId, keyId],
+    );
+    if (Number(others.rows[0]?.count ?? 0) === 0) {
+      return { ok: false, reason: "last_key" };
+    }
+
+    const mine = await client.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+         FROM staff_key_venues WHERE key_id = $1::uuid`,
+      [keyId],
+    );
+    if (Number(mine.rows[0]?.count ?? 0) <= 1) {
+      return { ok: false, reason: "last_venue" };
+    }
+
+    await client.query(
+      `DELETE FROM staff_key_venues
+        WHERE key_id = $1::uuid AND restaurant_id = $2::uuid`,
+      [keyId, restaurantId],
+    );
+    return { ok: true };
   });
 }

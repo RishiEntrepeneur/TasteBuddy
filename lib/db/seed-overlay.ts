@@ -1,5 +1,5 @@
 import { SEED_MENU_ITEMS } from "@/lib/db/seed";
-import type { MenuItem } from "@/lib/types";
+import type { MenuItem, Restaurant } from "@/lib/types";
 
 /**
  * In-memory edits layered over the seed dataset.
@@ -19,6 +19,7 @@ import type { MenuItem } from "@/lib/types";
 declare global {
   var __tasteBuddyMenuOverlay: Map<string, MenuItem> | undefined;
   var __tasteBuddyDeleted: Set<string> | undefined;
+  var __tasteBuddyRestaurantOverlay: Map<string, Restaurant> | undefined;
 }
 
 export function menuOverlay(): Map<string, MenuItem> {
@@ -29,6 +30,12 @@ export function menuOverlay(): Map<string, MenuItem> {
 export function deletedItems(): Set<string> {
   globalThis.__tasteBuddyDeleted ??= new Set();
   return globalThis.__tasteBuddyDeleted;
+}
+
+/** Branding and name edits to the seed venues, same scope and lifetime. */
+export function restaurantOverlay(): Map<string, Restaurant> {
+  globalThis.__tasteBuddyRestaurantOverlay ??= new Map();
+  return globalThis.__tasteBuddyRestaurantOverlay;
 }
 
 /** Seed items for a venue with edits applied and deletions removed. */

@@ -26,6 +26,7 @@ interface StaffKey {
   lastUsedAt: string | null;
   venues: StaffVenue[];
   isCurrent: boolean;
+  isOperator: boolean;
 }
 
 interface KeysResponse {
@@ -33,6 +34,8 @@ interface KeysResponse {
   currentVenueId: string;
   grantableVenues: StaffVenue[];
   canIssue: boolean;
+  /** Whether this caller may mint another key that can create venues. */
+  canIssueOperator: boolean;
 }
 
 interface IssuedKey {
@@ -69,6 +72,7 @@ export function AccessKeys({ onClose }: AccessKeysProps) {
   const [issuing, setIssuing] = useState(false);
   const [label, setLabel] = useState("");
   const [venueIds, setVenueIds] = useState<string[] | null>(null);
+  const [asOperator, setAsOperator] = useState(false);
   const [issued, setIssued] = useState<IssuedKey | null>(null);
   const [copied, setCopied] = useState(false);
   const [nonce, setNonce] = useState(0);
@@ -93,7 +97,11 @@ export function AccessKeys({ onClose }: AccessKeysProps) {
       const response = await fetch("/api/admin/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, venueIds: venueIds ?? undefined }),
+        body: JSON.stringify({
+          label,
+          venueIds: venueIds ?? undefined,
+          isOperator: asOperator,
+        }),
       });
       const body = (await response.json()) as IssuedKey & {
         error?: { message?: string };
@@ -105,6 +113,7 @@ export function AccessKeys({ onClose }: AccessKeysProps) {
       setIssuing(false);
       setLabel("");
       setVenueIds(null);
+      setAsOperator(false);
       setNonce((n) => n + 1);
     } catch (err) {
       setError(
@@ -113,7 +122,7 @@ export function AccessKeys({ onClose }: AccessKeysProps) {
     } finally {
       setBusy(false);
     }
-  }, [label, venueIds]);
+  }, [label, venueIds, asOperator]);
 
   const revoke = useCallback(async (key: StaffKey) => {
     setBusy(true);
@@ -230,6 +239,11 @@ export function AccessKeys({ onClose }: AccessKeysProps) {
                     this device
                   </span>
                 ) : null}
+                {key.isOperator ? (
+                  <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+                    operator
+                  </span>
+                ) : null}
 
                 <span className="ml-auto text-xs tabular-nums text-ink-muted">
                   {key.lastUsedAt ? `used ${when(key.lastUsedAt)}` : "never used"}
@@ -315,6 +329,24 @@ export function AccessKeys({ onClose }: AccessKeysProps) {
                   ))}
                 </div>
               </fieldset>
+            ) : null}
+
+            {data?.canIssueOperator ? (
+              <label className="flex items-start gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4 accent-[var(--color-sage)]"
+                  checked={asOperator}
+                  onChange={(e) => setAsOperator(e.target.checked)}
+                />
+                <span>
+                  This key can onboard restaurants
+                  <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted">
+                    Leave this off for a key you are handing to a venue. It
+                    lets the holder create new venues on the platform.
+                  </span>
+                </span>
+              </label>
             ) : null}
 
             <div className="flex items-center gap-2 pt-1">

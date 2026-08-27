@@ -74,6 +74,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     restaurant: venue,
     venues: identity.venues,
     keyLabel: identity.label,
+    isOperator: identity.isOperator,
   });
 }
 
@@ -89,6 +90,7 @@ export async function GET(): Promise<NextResponse> {
     restaurant: venue,
     venues: staff.venues,
     keyLabel: staff.label,
+    isOperator: staff.isOperator,
   });
 }
 
@@ -121,7 +123,11 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     sessionCookieOptions(),
   );
 
-  return NextResponse.json({ restaurant: venue, venues: staff.venues });
+  return NextResponse.json({
+    restaurant: venue,
+    venues: staff.venues,
+    isOperator: staff.isOperator,
+  });
 }
 
 export async function DELETE(): Promise<NextResponse> {
