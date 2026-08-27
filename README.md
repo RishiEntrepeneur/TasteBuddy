@@ -152,6 +152,13 @@ is reserved for what no ingredient can know — a shared fryer, a supplier notic
 | `PATCH` | `/api/admin/menu-items` | Toggle availability |
 | `DELETE` | `/api/admin/menu-items` | Remove a dish |
 
+Editing a dish also offers a photo upload, which runs the 2D-to-3D pipeline
+below and records the result against the dish — so a venue turns a photo into
+the model diners see in AR without touching a terminal. The panel reports the
+three LOD tiers and says out loud when a photo was already generated and cost
+nothing, because a venue that knows re-uploading is free will re-photograph
+until the mesh is right.
+
 ### The allergen model
 
 Severity is three-valued, because "contains peanuts" and "fried in a shared
@@ -208,6 +215,15 @@ curl "localhost:3000/api/menu?restaurant=hanoi-house&allergens=peanuts,shellfish
    and written to immutable, content-addressed paths.
 
 Failed jobs are deliberately *not* cached, so a retry is always allowed.
+
+`POST` requires a staff session and a dish belonging to that venue, checked
+before a single byte is hashed — mesh generation costs real money per call, and
+an open endpoint is a way to spend someone else's budget. `PUT` is the generator
+calling back, carries no cookie, and is authenticated by its HMAC signature.
+
+Every outcome is written to `asset_3d`, including `processing` and `failed`.
+Without that the pipeline produced CDN paths nothing read: a job could succeed
+and the diner's AR view would still fall back to procedural geometry.
 
 With `GENERATOR_WEBHOOK_URL` unset, a built-in mock follows the identical
 contract — job id now, signed callback later — so the whole pipeline is

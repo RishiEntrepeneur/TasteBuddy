@@ -351,3 +351,118 @@ export const ALLERGEN_SEVERITIES: readonly AllergenSeverity[] = [
   "may_contain",
   "removable",
 ];
+
+/* -------------------------------------------------------------------------- */
+/*  Generated 3D assets                                                        */
+/* -------------------------------------------------------------------------- */
+
+/** Confirms a dish belongs to the venue before anything is spent on it. */
+export async function ownsMenuItem(
+  restaurantId: string,
+  menuItemId: string,
+): Promise<boolean> {
+  if (!isDatabaseConfigured()) {
+    const item =
+      menuOverlay().get(menuItemId) ??
+      SEED_MENU_ITEMS.find((entry) => entry.id === menuItemId);
+    return (
+      item?.restaurantId === restaurantId && !deletedItems().has(menuItemId)
+    );
+  }
+
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM menu_items
+      WHERE id = $1::uuid AND restaurant_id = $2::uuid
+      LIMIT 1`,
+    [menuItemId, restaurantId],
+  );
+  return rows.length > 0;
+}
+
+export interface GeneratedAsset {
+  status: "processing" | "ready" | "failed";
+  glbUrl: string | null;
+  lodUrls: Record<string, string>;
+  triangleCount: number | null;
+  fileSizeBytes: number | null;
+  sourceImageUrl: string | null;
+  sourceChecksum: string | null;
+  realWorldScaleM: number;
+  generatorJobId: string | null;
+  failureReason: string | null;
+}
+
+/**
+ * Records the outcome of a mesh job against its dish.
+ *
+ * Until this existed the pipeline produced CDN paths that nothing ever read —
+ * a job could succeed and the diner's AR view would still fall back to
+ * procedural geometry, because no `asset_3d` row was ever written.
+ *
+ * Not scoped by restaurant on purpose: the two callers are the upload route,
+ * which checks ownership *before* submitting, and the generator's callback,
+ * which is authenticated by its HMAC signature and has no session to scope by.
+ */
+export async function persistGeneratedAsset(
+  menuItemId: string,
+  asset: GeneratedAsset,
+): Promise<void> {
+  if (!isDatabaseConfigured()) {
+    const current =
+      menuOverlay().get(menuItemId) ??
+      SEED_MENU_ITEMS.find((entry) => entry.id === menuItemId);
+    if (!current) return;
+    menuOverlay().set(menuItemId, {
+      ...current,
+      asset: {
+        id: `asset_${menuItemId}`,
+        menuItemId,
+        status: asset.status,
+        glbUrl: asset.glbUrl,
+        lodUrls: asset.lodUrls,
+        triangleCount: asset.triangleCount,
+        fileSizeBytes: asset.fileSizeBytes,
+        sourceImageUrl: asset.sourceImageUrl,
+        sourceChecksum: asset.sourceChecksum,
+        realWorldScaleM: asset.realWorldScaleM,
+        createdAt: new Date().toISOString(),
+        readyAt: asset.status === "ready" ? new Date().toISOString() : null,
+        failureReason: asset.failureReason,
+      },
+    });
+    return;
+  }
+
+  await withTransaction(async (client) => {
+    // One live asset per dish, so the previous attempt is retired rather than
+    // left to collide with the partial unique index.
+    await client.query(
+      `DELETE FROM asset_3d
+        WHERE menu_item_id = $1::uuid
+          AND status IN ('ready', 'processing', 'pending')`,
+      [menuItemId],
+    );
+
+    await client.query(
+      `INSERT INTO asset_3d
+         (menu_item_id, status, glb_url, lod_urls, triangle_count, file_size_bytes,
+          source_image_url, source_checksum, real_world_scale_m, generator_job_id,
+          failure_reason, ready_at)
+       VALUES ($1::uuid, $2::asset_status, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11,
+               CASE WHEN $2 = 'ready' THEN now() ELSE NULL END)`,
+      [
+        menuItemId,
+        asset.status,
+        asset.glbUrl,
+        JSON.stringify(asset.lodUrls),
+        asset.triangleCount,
+        asset.fileSizeBytes,
+        asset.sourceImageUrl,
+        asset.sourceChecksum,
+        asset.realWorldScaleM,
+        asset.generatorJobId,
+        asset.failureReason,
+      ],
+    );
+  });
+}

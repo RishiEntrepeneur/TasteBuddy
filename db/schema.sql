@@ -417,3 +417,19 @@ CREATE INDEX IF NOT EXISTS restaurant_staff_keys_live_idx
 
 CREATE INDEX IF NOT EXISTS restaurant_staff_keys_venue_idx
   ON restaurant_staff_keys (restaurant_id, created_at DESC);
+
+-- ============================================================================
+--  Migration 004 — let a photo back more than one dish
+-- ============================================================================
+
+-- The original checksum index was UNIQUE among ready assets, which quietly
+-- forbade the thing content-addressing exists to allow: the same photo backing
+-- two dishes. A chain with one stock shot per dish across venues, or a kitchen
+-- reusing a plating photo, would hit a constraint violation on the second
+-- upload. The cache lookup only ever needs "find a ready asset with this
+-- checksum", so uniqueness was never doing useful work.
+DROP INDEX IF EXISTS asset_3d_checksum_idx;
+
+CREATE INDEX IF NOT EXISTS asset_3d_checksum_idx
+  ON asset_3d (source_checksum)
+  WHERE source_checksum IS NOT NULL;

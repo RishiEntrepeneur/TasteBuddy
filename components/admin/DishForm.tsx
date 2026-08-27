@@ -3,6 +3,7 @@
 import { Plus, Trash2, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
+import { DishPhotoUpload } from "@/components/admin/DishPhotoUpload";
 import { ALLERGEN_LIST } from "@/lib/allergens";
 import { NUTRITION_LABELS, NUTRITION_UNITS } from "@/lib/nutrition";
 import {
@@ -407,6 +408,16 @@ export function DishForm({
             . You do not need to add them below.
           </p>
         ) : null}
+      </fieldset>
+
+      {/* 3D asset */}
+      <fieldset>
+        <legend className={labelClass}>3D model</legend>
+        <p className="mt-1 mb-2 text-xs leading-relaxed text-ink-muted">
+          A photo becomes the model diners see in AR. The same photo is only
+          ever generated once, however many dishes use it.
+        </p>
+        <DishPhotoUpload menuItemId={draft.id} />
       </fieldset>
 
       {/* Hand-declared allergens: the facts no ingredient can imply. */}

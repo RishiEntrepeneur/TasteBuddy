@@ -1,4 +1,12 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+
+import { STAFF_COOKIE, readSession } from "@/lib/auth/staff-session";
+import {
+  ownsMenuItem,
+  persistGeneratedAsset,
+  type GeneratedAsset,
+} from "@/lib/db/admin-repository";
 
 import {
   IMMUTABLE_ASSET_CACHE_CONTROL,
@@ -119,11 +127,57 @@ function toPayload(job: GenerationJob): PipelineAssetPayload {
   };
 }
 
+/** Shapes a finished job into the asset row the diner's menu query reads. */
+function toGeneratedAsset(payload: PipelineAssetPayload): GeneratedAsset {
+  return {
+    status:
+      payload.status === "ready"
+        ? "ready"
+        : payload.status === "failed"
+          ? "failed"
+          : "processing",
+    glbUrl: payload.glbUrl,
+    lodUrls: payload.lodUrls as Record<string, string>,
+    triangleCount: payload.triangleCount,
+    fileSizeBytes: payload.fileSizeBytes,
+    sourceImageUrl: payload.sourceImageUrl,
+    sourceChecksum: payload.checksum,
+    realWorldScaleM: payload.realWorldScaleM,
+    generatorJobId: payload.jobId,
+    failureReason: payload.failureReason,
+  };
+}
+
+/**
+ * Records an outcome against the dish, never failing the request over it.
+ *
+ * The mesh already exists on the CDN at this point; a write failure here means
+ * the diner falls back to procedural geometry, which is a degraded view rather
+ * than a lost job, and the next upload will overwrite the row anyway.
+ */
+async function recordAsset(payload: PipelineAssetPayload): Promise<void> {
+  try {
+    await persistGeneratedAsset(payload.menuItemId, toGeneratedAsset(payload));
+  } catch (error) {
+    console.error("[api/tastebuddy-pipeline] could not record asset", error);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /*  POST — upload a dish photo                                                 */
 /* -------------------------------------------------------------------------- */
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const store = await cookies();
+  const session = readSession(store.get(STAFF_COOKIE)?.value);
+  if (!session) {
+    return errorResponse(
+      401,
+      "not_signed_in",
+      "Sign in with your venue access key to generate 3D assets.",
+    );
+  }
+
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("multipart/form-data")) {
     return errorResponse(
@@ -158,6 +212,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     Number.isFinite(rawScale) && rawScale > 0 && rawScale < 2
       ? rawScale
       : DEFAULT_REAL_WORLD_SCALE_M;
+
+  // Checked before validation work and long before the generator is called:
+  // a dish from another venue must not even cost us a hash.
+  if (!(await ownsMenuItem(session.restaurantId, menuItemId))) {
+    return errorResponse(
+      404,
+      "menu_item_not_found",
+      "That dish is not on your menu.",
+    );
+  }
 
   const imageField = form.get("image");
   const validation = await validateImageUpload(
@@ -194,6 +258,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       cached: true,
     });
 
+    // A cache hit still has to attach the mesh to *this* dish — the bytes are
+    // shared, the association is not.
+    await recordAsset(payload);
+
     return NextResponse.json(payload, {
       status: 200,
       headers: {
@@ -228,6 +296,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (job.status === "ready") {
     cacheFinishedJob(job);
   }
+
+  // Recorded either way: a `processing` row is what tells the menu card to show
+  // "Building 3D model…" rather than "No 3D model yet".
+  await recordAsset(toPayload(job));
 
   return NextResponse.json(toPayload(job), {
     status: job.status === "ready" ? 201 : 202,
@@ -349,10 +421,11 @@ export async function PUT(request: Request): Promise<NextResponse> {
   }
 
   if (payload.status === "failed") {
-    return NextResponse.json(
-      toPayload(putJob(failJob(job, payload.error ?? "Generation failed."))),
-      { status: 200 },
+    const failed = toPayload(
+      putJob(failJob(job, payload.error ?? "Generation failed.")),
     );
+    await recordAsset(failed);
+    return NextResponse.json(failed, { status: 200 });
   }
 
   const sourceTriangles = Number(payload.source_triangles);
@@ -367,5 +440,8 @@ export async function PUT(request: Request): Promise<NextResponse> {
   const finished = putJob(completeJob(job, sourceTriangles));
   cacheFinishedJob(finished);
 
-  return NextResponse.json(toPayload(finished), { status: 200 });
+  const payloadOut = toPayload(finished);
+  await recordAsset(payloadOut);
+
+  return NextResponse.json(payloadOut, { status: 200 });
 }
