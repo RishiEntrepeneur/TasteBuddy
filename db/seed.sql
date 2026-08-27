@@ -250,3 +250,17 @@ ON CONFLICT (menu_item_id, ingredient_id) DO UPDATE
   SET quantity_g = EXCLUDED.quantity_g, is_optional = EXCLUDED.is_optional, note = EXCLUDED.note;
 
 COMMIT;
+
+-- ============================================================================
+--  Seed 003 — a development staff key
+--
+--  Only the hash is stored. The key itself is 'tastebuddy-dev-staff-key',
+--  which is fine for a local demo and must never exist in a real deployment —
+--  issue real venues a random key and give them the plaintext once.
+-- ============================================================================
+
+INSERT INTO restaurant_staff_keys (restaurant_id, key_hash, label)
+SELECT r.id, encode(digest('tastebuddy-dev-staff-key', 'sha256'), 'hex'), 'Development key'
+FROM restaurants r
+WHERE r.slug = 'aurelia-kitchen'
+ON CONFLICT (key_hash) DO NOTHING;

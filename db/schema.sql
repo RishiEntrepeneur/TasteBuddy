@@ -376,3 +376,44 @@ CREATE INDEX IF NOT EXISTS saved_dishes_token_idx
 -- Abandoned lists are not worth storing forever; a housekeeping job deletes
 -- rows whose token has not been touched in a year.
 CREATE INDEX IF NOT EXISTS saved_dishes_stale_idx ON saved_dishes (saved_at);
+
+-- ============================================================================
+--  Migration 003 — restaurant staff access
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+--  restaurant_staff_keys
+--
+--  Menu editing needs an authenticated caller, and TasteBuddy has no user
+--  accounts to hang that off. Each venue instead gets one or more opaque
+--  access keys, issued out of band when the venue is onboarded.
+--
+--  Only the SHA-256 of a key is stored. A password would need a slow KDF
+--  because humans choose weak ones; these are 256 bits of machine-generated
+--  randomness, so there is no dictionary to run and a fast hash is the right
+--  tool — what matters is that a database leak does not hand over live keys.
+--
+--  Keys are revoked, never deleted, so an audit can still explain who had
+--  access when.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS restaurant_staff_keys (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  restaurant_id  UUID NOT NULL REFERENCES restaurants (id) ON DELETE CASCADE,
+  -- Hex SHA-256 of the issued key.
+  key_hash       CHAR(64) NOT NULL UNIQUE,
+  -- Human label for the key, e.g. "Front of house iPad".
+  label          TEXT NOT NULL DEFAULT 'Staff key',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_at   TIMESTAMPTZ,
+  revoked_at     TIMESTAMPTZ
+);
+
+-- Sign-in looks a key up by hash alone; the venue is whatever the row says,
+-- so a key can never be replayed against a restaurant it was not issued for.
+CREATE INDEX IF NOT EXISTS restaurant_staff_keys_live_idx
+  ON restaurant_staff_keys (key_hash)
+  WHERE revoked_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS restaurant_staff_keys_venue_idx
+  ON restaurant_staff_keys (restaurant_id, created_at DESC);

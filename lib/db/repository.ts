@@ -1,5 +1,6 @@
 import { isDatabaseConfigured, query } from "@/lib/db/client";
-import { SEED_MENU_ITEMS, SEED_RESTAURANTS } from "@/lib/db/seed";
+import { SEED_RESTAURANTS } from "@/lib/db/seed";
+import { seedItemWithEdits, seedItemsWithEdits } from "@/lib/db/seed-overlay";
 import {
   type AllergenKey,
   type AllergenSeverity,
@@ -341,10 +342,8 @@ export async function getMenuItems(
   const includeUnavailable = options.includeUnavailable ?? false;
 
   if (!isDatabaseConfigured()) {
-    return SEED_MENU_ITEMS.filter(
-      (item) =>
-        item.restaurantId === restaurantId &&
-        (includeUnavailable || item.isAvailable),
+    return seedItemsWithEdits(restaurantId).filter(
+      (item) => includeUnavailable || item.isAvailable,
     );
   }
 
@@ -357,7 +356,7 @@ export async function getMenuItems(
 
 export async function getMenuItem(itemId: string): Promise<MenuItem | null> {
   if (!isDatabaseConfigured()) {
-    return SEED_MENU_ITEMS.find((item) => item.id === itemId) ?? null;
+    return seedItemWithEdits(itemId);
   }
 
   const rows = await query<MenuItemRow>(MENU_ITEM_BY_ID, [itemId]);

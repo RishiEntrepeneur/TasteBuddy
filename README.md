@@ -119,6 +119,39 @@ an allergen.
 | `POST` | `/api/saved` | Save. Idempotent |
 | `DELETE` | `/api/saved?token=…&menuItemId=…` | Remove |
 
+### The menu editor
+
+`/admin` is the venue-side editor: dishes, prices, portions, nutrition,
+ingredients and allergen declarations, plus the availability toggle staff
+actually reach for mid-service.
+
+Authentication is a per-venue **access key**, issued out of band, exchanged at
+sign-in for a signed httpOnly session cookie. Only the SHA-256 of a key is
+stored — a password would need a slow KDF because humans pick weak ones, but
+these are machine-generated tokens with no dictionary to run, so what matters is
+that a database leak hands over no live keys. Keys are revoked, never deleted,
+so an audit can still say who had access when.
+
+**The venue is always taken from the session, never from the request.** Every
+write is scoped by `restaurant_id` in its `WHERE` clause, so a valid session for
+one venue matches no rows in another's — verified by pointing an Aurelia session
+at a Hanoi House dish and getting a 404 from update, toggle and delete alike.
+The 404 is deliberate: confirming the dish exists would leak another venue's ids.
+
+The editor shows which allergens the ingredient list already implies, live as
+you add ingredients, so nobody re-declares them by hand. The hand-declared field
+is reserved for what no ingredient can know — a shared fryer, a supplier notice.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/admin/session` | Exchange an access key for a session |
+| `GET` | `/api/admin/session` | Current session, if any |
+| `DELETE` | `/api/admin/session` | Sign out |
+| `GET` | `/api/admin/menu-items` | Every dish plus the ingredient catalogue |
+| `POST` | `/api/admin/menu-items` | Create or update a dish |
+| `PATCH` | `/api/admin/menu-items` | Toggle availability |
+| `DELETE` | `/api/admin/menu-items` | Remove a dish |
+
 ### The allergen model
 
 Severity is three-valued, because "contains peanuts" and "fried in a shared
