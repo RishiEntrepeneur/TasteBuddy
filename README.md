@@ -91,6 +91,31 @@ npm run verify:contrast   # every colour that carries text, measured
 `verify:contrast` exists because an alert nobody can read is worse than no
 alert, and "it looks fine on my screen" is not a measurement.
 
+### The one that needs a key
+
+```bash
+npm run try:menu                        # the bundled fixture
+npm run try:menu -- ~/your-menu.jpg     # your own photo
+```
+
+Everything above proves the plumbing. None of it proves the answers are any
+good, which is the only thing that matters, and that needs a real photo and a
+real call.
+
+`fixtures/menu-photo.jpg` is a Hanoi menu shot at an angle, with window glare
+down one side and the far edge out of focus. `fixtures/menu-photo.expected.json`
+is what is actually printed on it, so the run is scored rather than admired:
+every dish found, every price attached to the right dish, the seven allergens
+buried in Vietnamese descriptions (`chấm tương đậu phộng` is peanut sauce,
+`nước mắm` is fish sauce, `đậu phụ` is tofu), and the two dishes that should
+come back vegetarian.
+
+The prices are the trap. They sit on the line *above* their dish, so anything
+reading by vertical position alone attaches every one of them to the wrong row.
+
+Drop your own photo in and it prints what came back for you to read. Add a
+`your-menu.expected.json` beside it and it scores that too.
+
 ## Layout
 
 ```

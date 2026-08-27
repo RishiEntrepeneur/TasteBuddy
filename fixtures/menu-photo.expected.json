@@ -1,0 +1,31 @@
+{
+  "note": "Ground truth for fixtures/menu-photo.jpg — a Hanoi menu shot at an angle with glare on the right and the far edge out of focus. Prices sit on the line ABOVE their dish, which is the trap: a reader that goes by vertical position alone attaches every price to the wrong row.",
+  "language": "Vietnamese",
+  "dishes": [
+    { "name": "Nem rán Hà Nội",      "price": "65.000",  "englishHint": ["spring roll", "fried"] },
+    { "name": "Gỏi cuốn tôm thịt",   "price": "55.000",  "englishHint": ["fresh", "summer", "roll"] },
+    { "name": "Chả cá lăng nướng",   "price": "120.000", "englishHint": ["fish", "turmeric", "dill"] },
+    { "name": "Bún chả Hàng Mành",   "price": "85.000",  "englishHint": ["pork", "noodle"] },
+    { "name": "Phở bò tái nạm",      "price": "75.000",  "englishHint": ["beef", "noodle soup", "pho"] },
+    { "name": "Cà ri gà",            "price": "95.000",  "englishHint": ["chicken", "curry"] },
+    { "name": "Đậu phụ sốt cà chua", "price": "50.000",  "englishHint": ["tofu", "tomato"] },
+    { "name": "Rau muống xào tỏi",   "price": "40.000",  "englishHint": ["morning glory", "water spinach", "garlic"] },
+    { "name": "Chè ba màu",          "price": "35.000",  "englishHint": ["three", "colour", "color", "dessert"] },
+    { "name": "Bánh flan cà phê",    "price": "38.000",  "englishHint": ["flan", "caramel", "coffee"] },
+    { "name": "Cà phê sữa đá",       "price": "30.000",  "englishHint": ["iced", "coffee", "milk"] },
+    { "name": "Nước sấu",            "price": "25.000",  "englishHint": ["dogwood", "sấu", "drink", "juice"] }
+  ],
+  "allergensItMustCatch": [
+    { "dish": "Gỏi cuốn tôm thịt",  "key": "peanuts",   "why": "the description says chấm tương đậu phộng — peanut dipping sauce" },
+    { "dish": "Gỏi cuốn tôm thịt",  "key": "shellfish", "why": "tôm is prawn" },
+    { "dish": "Chả cá lăng nướng",  "key": "fish",      "why": "cá lăng is a catfish" },
+    { "dish": "Bún chả Hàng Mành",  "key": "fish",      "why": "nước mắm is fish sauce" },
+    { "dish": "Đậu phụ sốt cà chua","key": "soy",       "why": "đậu phụ is tofu" },
+    { "dish": "Bánh flan cà phê",   "key": "eggs",      "why": "flan trứng is egg custard" },
+    { "dish": "Cà phê sữa đá",      "key": "dairy",     "why": "sữa đặc is condensed milk" }
+  ],
+  "dietaryItShouldGet": [
+    { "dish": "Đậu phụ sốt cà chua", "dietary": "vegetarian", "why": "the menu marks it Món chay" },
+    { "dish": "Rau muống xào tỏi",   "dietary": "vegan",      "why": "greens and garlic" }
+  ]
+}
