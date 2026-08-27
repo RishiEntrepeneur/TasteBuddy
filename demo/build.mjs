@@ -91,7 +91,7 @@ body{min-height:100dvh;-webkit-font-smoothing:antialiased;margin:0}
 
 /* -- 3. one file ---------------------------------------------------------- */
 
-const html = `<title>TasteBuddy</title>
+const html = `<title>TasteBuddy Offline</title>
 <meta name="color-scheme" content="light dark">
 <style>${css}</style>
 <div id="root"></div>
