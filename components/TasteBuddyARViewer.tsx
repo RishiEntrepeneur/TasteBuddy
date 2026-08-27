@@ -55,6 +55,8 @@ export interface ARDish {
   description: string;
   /** Longest real-world edge of the plated dish, in metres. */
   realWorldScaleM: number;
+  /** How it turns up: "one long roll". Names the form when the name does not. */
+  servedAs: string;
   /** False when the dish is not known: the plate is left empty. */
   recognised: boolean;
   /** Only the ones that clash with this diner's profile. */
@@ -70,6 +72,7 @@ export function arDishFrom(
     name: dish.printedName,
     description: `${dish.englishName} ${dish.whatItIs}`,
     realWorldScaleM: 0.22,
+    servedAs: dish.servedAs,
     recognised: dish.recognised,
     clashes,
   };
@@ -210,6 +213,7 @@ function AnchoredDish({
           url={null}
           name={item.name}
           description={item.description}
+          servedAs={item.servedAs}
           recognised={item.recognised}
           targetDiameter={targetDiameter}
           portion={1}

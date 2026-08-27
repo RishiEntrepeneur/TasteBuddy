@@ -103,7 +103,7 @@ console.log('\nforms the fallback used to flatten into one brown mound');
 shape('idli is steamed, not a stew', 'Idli', 'Small steamed cakes of fermented rice and lentil batter.', 'steamed');
 shape('dhokla is steamed', 'ઢોકળા Dhokla', 'A spongy steamed square of fermented gram flour.', 'steamed');
 shape('naan is bread', 'Naan', 'Leavened flatbread slapped onto the wall of a tandoor.', 'bread');
-shape('a dosa is a pancake, so bread', 'मसाला दोसा Masala dosa', 'A thin rice crepe folded around spiced potato.', 'bread');
+shape('a dosa is a roll, not a flatbread', 'मसाला दोसा Masala dosa', 'A thin rice crepe folded around spiced potato.', 'crepe');
 shape('gyoza are dumplings', 'Gyoza', 'Pork and cabbage in a thin wrapper, fried on one side.', 'dumpling');
 shape('a soup dumpling is a dumpling first', 'Xiao long bao Soup dumplings', 'Pork and jellied stock in a pleated wheat skin.', 'dumpling');
 shape('falafel is fried', 'فلافل Falafel', 'Crushed chickpeas and herbs, deep-fried.', 'fried');
@@ -112,6 +112,31 @@ shape('tacos are wrapped', 'Tacos al pastor', 'Pork shaved into small corn torti
 shape('shawarma is wrapped', 'شاورما Shawarma', 'Meat shaved off a spit into flatbread.', 'wrap');
 shape('guacamole is a dip', 'Guacamole', 'Avocado crushed with lime, onion and coriander.', 'dip');
 shape('dal is a soup', 'दाल Dal tadka', 'Lentils simmered soft and finished with fried spices.', 'soup');
+
+console.log('\nhow a dish is served names its form');
+
+/** The third argument the app actually has for every dish. */
+function served(label: string, name: string, servedAs: string, expected: DishArchetype): void {
+  const got = pickArchetype(name, '', servedAs);
+  check(label, got === expected, got === expected ? '' : `wanted ${expected}, got ${got}`);
+}
+
+served('"one long roll" is a roll', 'Mystery', 'one long roll with chutney and sambar', 'crepe');
+served('"four or five rolls" are rolls', 'Mystery', 'four or five rolls with a bowl of sauce', 'wrap');
+served('"a steamer basket" is dumplings', 'Mystery', 'a steamer basket of eight or ten', 'dumpling');
+served('"a tall glass" is a drink', 'Mystery', 'a tall glass', 'drink');
+served('"a wedge, warm" is cake-shaped', 'Mystery', 'a wedge, warm', 'cake');
+served('"one boat" is bread', 'Mystery', 'one boat, hot, per person', 'bread');
+check(
+  'the name still beats how it is served',
+  pickArchetype('Phở bò', '', 'a tall glass') === 'soup',
+  pickArchetype('Phở bò', '', 'a tall glass'),
+);
+check(
+  '"a bowl" is not a form, so it decides nothing',
+  pickArchetype('Mystery', '', 'one large bowl, eaten fast') === 'generic',
+  pickArchetype('Mystery', '', 'one large bowl, eaten fast'),
+);
 
 console.log('\nshort words do not match inside longer ones');
 

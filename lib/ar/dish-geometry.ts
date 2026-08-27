@@ -31,6 +31,7 @@ export type DishArchetype =
   | "drink"
   | "steamed"
   | "bread"
+  | "crepe"
   | "dumpling"
   | "dip"
   | "fried"
@@ -85,9 +86,10 @@ const MATCHERS: readonly (readonly [DishArchetype, RegExp])[] = [
     "wrap",
     /burrito|\btaco\b|tacos|shawarma|shwarma|\bkebab\b|\bdoner\b|döner|\bgyro\b|souvlaki|\bwrap\b|cuốn|quesadilla/i,
   ],
+  ["crepe", /\bdosa\b|\bdose\b|crêpe|\bcrepe\b|galette|\bblintz/i],
   [
     "bread",
-    /\bnaan\b|\broti\b|paratha|chapati|\bpita\b|baguette|focaccia|ciabatta|injera|khachapuri|\bdosa\b|uttapam|\bpav\b|\bbun\b|brioche|sandwich|bánh mì|banh mi|\barepa\b|pancake|crêpe|\bcrepe\b|\btoast\b|\bbread\b/i,
+    /\bnaan\b|\broti\b|paratha|chapati|\bpita\b|baguette|focaccia|ciabatta|injera|khachapuri|uttapam|\bpav\b|\bbun\b|brioche|sandwich|bánh mì|banh mi|\barepa\b|pancake|crêpe|\bcrepe\b|\btoast\b|\bbread\b/i,
   ],
   [
     "seafood",
@@ -123,6 +125,7 @@ const FROM_DESCRIPTION: readonly DishArchetype[] = [
   "noodles",
   "dumpling",
   "steamed",
+  "crepe",
   "bread",
   "risotto",
   "salad",
@@ -135,15 +138,41 @@ const FROM_DESCRIPTION: readonly DishArchetype[] = [
 ];
 
 /**
+ * Form words from how a dish is *served*, which is a better clue than what is
+ * in it and a worse one than what it is called.
+ *
+ * "one long roll with chutney and sambar" is a masala dosa's own description of
+ * its shape, and the app already writes that sentence for every dish. Only
+ * words that name a form outright are here: "a bowl" is not one, because a
+ * bowl holds soup, rice, salad and dip alike.
+ */
+const SERVED_MATCHERS: readonly (readonly [DishArchetype, RegExp])[] = [
+  ["crepe", /long roll|one roll\b/i],
+  ["wrap", /\brolls\b|\bwrap\b|in pita|\btacos?\b/i],
+  ["dumpling", /steamer|\bbasket\b/i],
+  ["drink", /\bglass\b/i],
+  ["cake", /\bwedge\b|\bslice\b/i],
+  ["bread", /\bboat\b|\bbreads?\b|\bpancake\b/i],
+];
+
+/**
  * Picks the shape to build.
  *
  * `name` is asked first and against everything. `description` is a fallback for
  * the many dishes whose names carry no clue at all — bibimbap, okonomiyaki,
  * tteokbokki — and is only allowed to answer the narrower question above.
  */
-export function pickArchetype(name: string, description = ""): DishArchetype {
+export function pickArchetype(
+  name: string,
+  description = "",
+  servedAs = "",
+): DishArchetype {
   for (const [archetype, pattern] of MATCHERS) {
     if (pattern.test(name)) return archetype;
+  }
+
+  for (const [archetype, pattern] of SERVED_MATCHERS) {
+    if (servedAs && pattern.test(servedAs)) return archetype;
   }
 
   if (description) {
@@ -901,36 +930,100 @@ const RECIPES: Readonly<Record<DishArchetype, Recipe>> = {
     b.add(mesh);
   },
 
-  /** Flatbread and pancakes: one browned disc, off a board. */
+  /** Flatbread: one browned disc off a board. Flat — a naan is not a bun. */
   bread(b) {
     addVessel(b, "board");
 
     const loaf = b.geo(
       new THREE.SphereGeometry(0.62, 30, 18, 0, Math.PI * 2, 0, Math.PI * 0.5),
     );
-    loaf.scale(1.3, 0.17, 0.88);
+    loaf.scale(1.32, 0.1, 0.86);
     const mesh = new THREE.Mesh(
       loaf,
-      b.mat({ color: colour(0xd9ab68), roughness: 0.88 }),
+      b.mat({ color: colour(0xe0bd83), roughness: 0.9 }),
     );
     mesh.position.y = 0.05;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     b.add(mesh);
 
-    // The blisters a hot oven or a tawa leaves.
-    const spot = b.geo(new THREE.SphereGeometry(0.045, 8, 6));
-    spot.scale(1.5, 0.5, 1.1);
+    // The blisters a tandoor leaves: small, shallow, and the same bread only
+    // darker. Big dark lumps read as fruit, which is how this looked before.
+    const spot = b.geo(new THREE.SphereGeometry(0.055, 10, 5));
+    spot.scale(1.5, 0.09, 1.15);
     addScatter(b, {
       geometry: spot,
-      count: 26,
-      radius: 0.68,
-      height: 0.11,
-      y: 0.08,
-      hex: 0x8f5a26,
-      variance: 0.22,
-      roughness: 0.9,
+      count: 14,
+      radius: 0.62,
+      height: 0.05,
+      y: 0.092,
+      hex: 0xbe9257,
+      variance: 0.05,
+      roughness: 0.94,
     });
+  },
+
+  /**
+   * A dosa: one long roll, thin and pale, longer than the board.
+   *
+   * Rolled rather than laid flat, because that is how it arrives and because a
+   * crepe drawn flat is indistinguishable from a pancake at this size.
+   */
+  crepe(b) {
+    addVessel(b, "board");
+
+    const roll = b.geo(new THREE.CylinderGeometry(0.115, 0.098, 1.95, 26, 1));
+    const mesh = new THREE.Mesh(
+      roll,
+      b.mat({ color: colour(0xf0d49b), roughness: 0.46 }),
+    );
+    // Z, not X: a cylinder's axis is Y, so this lays it down the long way and
+    // the scorch marks below are placed against the same axis.
+    mesh.rotation.set(0, 0, Math.PI / 2 + 0.05);
+    mesh.position.set(0, 0.15, 0.02);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    b.add(mesh);
+
+    // Where it caught the griddle. Placed along the roll rather than scattered
+    // over a dome, which is what every other recipe here needs.
+    const count = 26;
+    const scorch = b.geo(new THREE.SphereGeometry(0.05, 8, 5));
+    scorch.scale(1.6, 0.24, 1);
+    const marks = new THREE.InstancedMesh(
+      scorch,
+      b.mat({ color: 0xffffff, roughness: 0.7 }),
+      count,
+    );
+    const dummy = new THREE.Object3D();
+    const base = colour(0xc98f43);
+    for (let i = 0; i < count; i += 1) {
+      const along = (b.rand() - 0.5) * 1.75;
+      const around = b.rand() * Math.PI * 2;
+      const r = 0.108;
+      dummy.position.set(
+        along,
+        0.15 + Math.sin(around) * r,
+        0.02 + Math.cos(around) * r,
+      );
+      dummy.rotation.set(around, 0, (b.rand() - 0.5) * 0.4);
+      dummy.scale.setScalar(0.5 + b.rand() * 0.7);
+      dummy.updateMatrix();
+      marks.setMatrixAt(i, dummy.matrix);
+      marks.setColorAt(i, vary(base, b.rand, 0.22));
+    }
+    marks.instanceMatrix.needsUpdate = true;
+    if (marks.instanceColor) marks.instanceColor.needsUpdate = true;
+    b.add(marks);
+
+    // The potato showing at the open end, so it reads as filled.
+    const filling = new THREE.Mesh(
+      b.geo(new THREE.SphereGeometry(0.115, 14, 10)),
+      b.mat({ color: colour(0xd6a132), roughness: 0.85 }),
+    );
+    filling.position.set(0.9, 0.15, 0.02);
+    filling.scale.set(0.55, 0.95, 0.95);
+    b.add(filling);
   },
 
   /** Parcels: gyoza, pierogi, momo, empanadas. */
@@ -1126,6 +1219,8 @@ export interface BuildDishOptions {
   name: string;
   /** What is in it. A fallback for names that carry no clue — see `pickArchetype`. */
   description?: string;
+  /** How it turns up: "one long roll", "a steamer basket". Names the form. */
+  servedAs?: string;
   /**
    * False when nothing is actually known about this dish. Nothing is drawn on
    * the plate: see the `unknown` recipe for why.
@@ -1163,7 +1258,7 @@ export function buildDish(options: BuildDishOptions): BuiltDish {
     options.archetype ??
     (options.recognised === false
       ? "unknown"
-      : pickArchetype(options.name, options.description));
+      : pickArchetype(options.name, options.description, options.servedAs));
   const seed = `${options.name} ${options.description ?? ""}`.trim();
   const builder = new Builder(makeRand(hashSeed(seed || archetype)));
 

@@ -21,6 +21,8 @@ interface DishModelProps {
   name: string;
   /** What is in it, consulted only when the name says nothing. */
   description?: string;
+  /** How it turns up: "one long roll". Names the form when the name does not. */
+  servedAs?: string;
   /** False when the dish is not known. Draws an empty plate. */
   recognised?: boolean;
   /** World diameter to fit the dish into, in metres. */
@@ -122,13 +124,14 @@ function GltfDish({
 function ProceduralDish({
   name,
   description,
+  servedAs,
   recognised,
   targetDiameter,
   portion,
 }: DishModelProps) {
   const built = useMemo(
-    () => buildDish({ name, description, recognised }),
-    [name, description, recognised],
+    () => buildDish({ name, description, servedAs, recognised }),
+    [name, description, servedAs, recognised],
   );
 
   // Built imperatively, so nothing else will release it.

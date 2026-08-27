@@ -74,6 +74,7 @@ export function DishScreen({
           <DishPreview3D
             name={`${dish.printedName} ${dish.englishName}`.trim()}
             description={dish.whatItIs}
+            servedAs={dish.servedAs}
             recognised={dish.recognised}
           />
 

@@ -26,6 +26,8 @@ interface DishPreview3DProps {
   name: string;
   /** What is in it. Only consulted when the name says nothing. */
   description?: string;
+  /** How it turns up: "one long roll". Names the form when the name does not. */
+  servedAs?: string;
   /** False when the dish is not known: the plate comes out empty. */
   recognised?: boolean;
 }
@@ -33,6 +35,7 @@ interface DishPreview3DProps {
 export function DishPreview3D({
   name,
   description,
+  servedAs,
   recognised = true,
 }: DishPreview3DProps) {
   return (
@@ -56,6 +59,7 @@ export function DishPreview3D({
               url={null}
               name={name}
               description={description}
+              servedAs={servedAs}
               recognised={recognised}
               targetDiameter={0.25}
               portion={1}
