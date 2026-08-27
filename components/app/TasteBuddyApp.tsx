@@ -12,6 +12,7 @@ import {
 } from "@/components/app/MenuResults";
 import { TasteBuddyARViewer, arDishFrom } from "@/components/TasteBuddyARViewer";
 import { clashesWith } from "@/lib/dish/clash";
+import { PhotoError, preparePhoto } from "@/lib/dish/photo";
 import type { DishExplanation, DishSummary } from "@/lib/dish/types";
 import { useAllergenProfile } from "@/lib/hooks/useAllergenProfile";
 import { useDinerToken } from "@/lib/hooks/useDinerToken";
@@ -57,9 +58,17 @@ export function TasteBuddyApp() {
       setScanning(true);
       setError(null);
       try {
+        // Shrunk, turned the right way up and re-encoded before it goes
+        // anywhere: a HEIC becomes a JPEG, a 6 MB photo becomes well under the
+        // cap, and the location EXIF a restaurant photo carries is left behind.
+        const ready = await preparePhoto(file);
+
         const body = new FormData();
         body.set("token", token);
-        body.set("photo", file);
+        body.set(
+          "photo",
+          new File([ready.blob], "menu.jpg", { type: "image/jpeg" }),
+        );
         const response = await fetch("/api/read-menu", { method: "POST", body });
         const payload = (await response.json()) as MenuReadingView & {
           error?: { message?: string };
@@ -70,7 +79,11 @@ export function TasteBuddyApp() {
         setReading(payload);
         setScreen({ name: "menu" });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "That did not work.");
+        setError(
+          err instanceof PhotoError || err instanceof Error
+            ? err.message
+            : "That did not work.",
+        );
       } finally {
         setScanning(false);
       }
@@ -246,10 +259,14 @@ export function TasteBuddyApp() {
         />
       </nav>
 
+      {/*
+        Anything the phone will offer, an iPhone's HEIC included:
+        `preparePhoto` converts and shrinks it before it leaves the device.
+      */}
       <input
         ref={camera}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/*"
         capture="environment"
         className="hidden"
         onChange={(event) => {

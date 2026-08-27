@@ -1,9 +1,16 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ChevronRight,
+  Loader2,
+  MessageCircleWarning,
+} from "lucide-react";
 
 import { VerdictPill } from "@/components/app/Verdict";
 import { clashesWith, verdictFor } from "@/lib/dish/clash";
+import { crossContactFor, listAllergens } from "@/lib/dish/cross-contact";
 import type { DishSummary } from "@/lib/dish/types";
 import type { AllergenKey } from "@/lib/types";
 
@@ -40,6 +47,7 @@ export function MenuResults({
   const flagged = reading.dishes.filter(
     (dish) => clashesWith(dish, avoid).length > 0,
   ).length;
+  const crossContact = crossContactFor(avoid);
 
   return (
     <div className="pb-8">
@@ -69,6 +77,25 @@ export function MenuResults({
               : " None clash with yours."
             : ""}
         </p>
+
+        {/*
+          Once, at the top, rather than on every row. This list is where
+          somebody picks the dish that looked safe, and the rows it applies to
+          hardest are the ones with a green tick on them.
+        */}
+        {crossContact ? (
+          <p className="mt-3 flex items-start gap-2 rounded-tile bg-caution-wash px-3.5 py-3 text-[14px] leading-relaxed text-ink">
+            <MessageCircleWarning
+              className="mt-0.5 size-4 shrink-0 text-caution"
+              aria-hidden
+            />
+            <span>
+              Even where nothing is flagged, ask about{" "}
+              {listAllergens(crossContact.keys)}: no menu prints what a kitchen
+              shares.
+            </span>
+          </p>
+        ) : null}
 
         {reading.notes.length > 0 ? (
           <ul className="mt-3 space-y-1">

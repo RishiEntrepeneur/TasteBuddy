@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Flame,
   Leaf,
+  MessageCircleWarning,
   ScanLine,
   Trash2,
   Utensils,
@@ -13,6 +14,7 @@ import { VerdictPill } from "@/components/app/Verdict";
 import { DishPreview3D } from "@/components/dish/DishPreview3D";
 import { ALLERGEN_CATALOG } from "@/lib/allergens";
 import { clashSentence, clashesWith, verdictFor } from "@/lib/dish/clash";
+import { crossContactFor, listAllergens } from "@/lib/dish/cross-contact";
 import type { DishExplanation } from "@/lib/dish/types";
 import type { AllergenKey } from "@/lib/types";
 
@@ -42,6 +44,7 @@ export function DishScreen({
 }: DishScreenProps) {
   const clashes = clashesWith(dish, avoid);
   const verdict = verdictFor(clashes, avoid.length > 0, dish.recognised);
+  const crossContact = crossContactFor(avoid);
 
   return (
     <div className="pb-8">
@@ -136,6 +139,30 @@ export function DishScreen({
             <p className="mt-3 text-[14px] leading-relaxed text-ink-2">
               That is how the dish is normally made. Only the kitchen knows what
               went into theirs, so say it to your server before you order.
+            </p>
+          </section>
+        ) : null}
+
+        {/*
+          Not a guess and not a model output: a standing fact about kitchens,
+          shown to anyone who avoids something a trace of will hurt. It matters
+          most on the dishes that came back clear, because "Nothing you avoid"
+          on a plate of chips is exactly where somebody needs to hear that the
+          fryer is shared.
+        */}
+        {crossContact ? (
+          <section className="card mt-3 px-5 py-4">
+            <p className="flex items-start gap-2.5 text-[15px] font-semibold text-ink">
+              <MessageCircleWarning
+                className="mt-0.5 size-4 shrink-0 text-caution"
+                aria-hidden
+              />
+              Ask about {listAllergens(crossContact.keys)} even when nothing is
+              flagged
+            </p>
+            <p className="mt-2 pl-6.5 text-[14px] leading-relaxed text-ink-2">
+              No menu prints what a kitchen shares, and this app cannot see it
+              either: {crossContact.because}. Your server can find out.
             </p>
           </section>
         ) : null}

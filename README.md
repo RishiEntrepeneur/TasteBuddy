@@ -29,6 +29,12 @@ the device.
 one is in plain words. Anything that clashes with your allergies is flagged on
 the row.
 
+Whatever your phone hands over is fine. A HEIC off an iPhone, a 35 MB photo, a
+picture taken sideways: `lib/dish/photo.ts` decodes it on the device, turns it
+the right way up, shrinks it to the 2576px Claude Opus 5 actually reads, and
+re-encodes it as a JPEG. That is also what strips the EXIF, so the location a
+restaurant photo carries never leaves the phone.
+
 **Type a dish.** One name you cannot place, in whatever spelling you managed.
 It comes back with the proper name and accents, what it is, what it tastes
 like, and what is usually in it.
@@ -60,6 +66,13 @@ order blind.
 Your allergies never leave your phone. There is no account to attach them to
 and no request that carries them: dishes are matched against them in the
 browser.
+
+One warning is not a guess at all. Where you avoid something a *trace* of will
+hurt — gluten, peanuts, tree nuts, shellfish, fish, sesame, molluscs — the app
+says so on every dish and once at the top of every menu, including the ones
+that came back clear. No menu prints which fryer is shared, and this app cannot
+see it either. "Nothing you avoid" on a plate of chips is exactly the screen
+where somebody needs to hear that.
 
 ## Running it
 

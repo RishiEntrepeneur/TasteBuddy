@@ -461,10 +461,21 @@ export async function readMenuPhoto(
   };
 }
 
+/**
+ * Collapses a genuinely repeated row, and keeps a genuinely repeated name.
+ *
+ * The price is part of the key because menus repeat names on purpose: a
+ * Margherita at two sizes, a green salad priced as a side and again as a
+ * starter. Keying on the name alone silently dropped the second one, which on
+ * a pizza menu is half the menu.
+ *
+ * Two rows with the same name and the same price are what a duplicate actually
+ * looks like, and those still collapse.
+ */
 function dedupe(dishes: DishSummary[]): DishSummary[] {
   const seen = new Set<string>();
   return dishes.filter((dish) => {
-    const key = dish.printedName.toLowerCase();
+    const key = `${dish.printedName.toLowerCase()}|${dish.priceText.replace(/\s/g, "")}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

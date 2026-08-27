@@ -154,7 +154,8 @@ async function main(): Promise<number> {
 
   const langOk = fold(reading.language).includes(fold(expected.language));
   console.log(`${tick(langOk)} language is ${expected.language}`);
-  langOk ? (passed += 1) : failures.push(`language came back "${reading.language}"`);
+  if (langOk) passed += 1;
+  else failures.push(`language came back "${reading.language}"`);
 
   console.log(`\n  Dishes\n`);
   for (const want of expected.dishes) {
@@ -172,9 +173,12 @@ async function main(): Promise<number> {
       `${tick(priceOk)} ${want.name} · ${got.priceText || "no price"}` +
         (priceOk ? "" : ` (should be ${want.price})`),
     );
-    priceOk
-      ? (passed += 1)
-      : failures.push(`${want.name} priced ${got.priceText || "nothing"}, not ${want.price}`);
+    if (priceOk) passed += 1;
+    else {
+      failures.push(
+        `${want.name} priced ${got.priceText || "nothing"}, not ${want.price}`,
+      );
+    }
 
     const english = fold(`${got.englishName} ${got.oneLine}`);
     const englishOk = want.englishHint.some((hint) => english.includes(fold(hint)));
@@ -192,9 +196,8 @@ async function main(): Promise<number> {
     `\n${tick(extra.length === 0)} nothing invented` +
       (extra.length ? ` — got ${extra.map((d) => d.printedName).join(", ")}` : ""),
   );
-  extra.length === 0
-    ? (passed += 1)
-    : failures.push(`invented ${extra.length} dish(es)`);
+  if (extra.length === 0) passed += 1;
+  else failures.push(`invented ${extra.length} dish(es)`);
 
   console.log(`\n  Allergens it has to catch\n`);
   for (const want of expected.allergensItMustCatch) {
@@ -204,7 +207,8 @@ async function main(): Promise<number> {
       `${tick(Boolean(hit))} ${want.dish} → ${want.key}` +
         (hit ? ` (${hit.likelihood}, from ${hit.from})` : ` — ${want.why}`),
     );
-    hit ? (passed += 1) : failures.push(`missed ${want.key} on ${want.dish}`);
+    if (hit) passed += 1;
+    else failures.push(`missed ${want.key} on ${want.dish}`);
   }
 
   console.log(`\n  Dietary\n`);
@@ -218,7 +222,8 @@ async function main(): Promise<number> {
       `${tick(ok)} ${want.dish} is ${want.dietary}` +
         (ok ? "" : ` — came back ${got?.dietary ?? "missing"}`),
     );
-    ok ? (passed += 1) : failures.push(`${want.dish} came back ${got?.dietary}`);
+    if (ok) passed += 1;
+    else failures.push(`${want.dish} came back ${got?.dietary}`);
   }
 
   /* ---- and one dish opened in full -------------------------------------- */
@@ -247,9 +252,11 @@ async function main(): Promise<number> {
     console.log(
       `\n${tick(!saysContains)} no allergen claims certainty about this kitchen`,
     );
-    saysContains
-      ? failures.push("an allergen came back phrased as a certainty")
-      : (passed += 1);
+    if (saysContains) {
+      failures.push("an allergen came back phrased as a certainty");
+    } else {
+      passed += 1;
+    }
   }
 
   /* ---- verdict ----------------------------------------------------------- */
