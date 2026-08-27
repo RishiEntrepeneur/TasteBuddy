@@ -1,21 +1,27 @@
 /**
  * Surface tracking for an empty plate.
  *
- * WebXR hit-testing is the right tool for this and is used whenever the browser
- * offers it (`immersive-ar` + `hit-test`, i.e. Chrome on ARCore devices). iOS
- * Safari ships no WebXR at all, which is most of the diners TasteBuddy will
- * ever see, so this module provides the fallback: a lightweight vision pass
- * over the camera feed that finds the plate itself.
+ * WebXR hit-testing would be the right tool, but iOS Safari ships no WebXR at
+ * all and that is most of the diners TasteBuddy will ever see, so this module
+ * is what actually runs: a lightweight vision pass over the camera feed that
+ * finds the plate itself. There is no device pose behind it — everything the
+ * viewer knows about where the plate is, and about the angle it is being
+ * looked at from, is measured here.
  *
  * The heuristic exploits what a plate reliably is — a large, bright, almost
  * colourless disc against a darker, more saturated table:
  *
- *   1. Downsample the frame to 64x48. That is enough to locate a dinner plate
- *      at arm's length and cheap enough to run every frame on a mid-range
- *      phone without stealing the GPU from the renderer.
+ *   1. Downsample the frame to about three thousand pixels, keeping the
+ *      camera's own shape. That is enough to locate a dinner plate at arm's
+ *      length and cheap enough to run every frame on a mid-range phone without
+ *      stealing the GPU from the renderer. Keeping the shape matters: squash a
+ *      portrait frame into a landscape buffer and a round plate arrives as a
+ *      wide ellipse, which step 4 then throws away.
  *   2. Keep pixels that are bright and low-saturation.
  *   3. Take the weighted centroid and the second moment of that mask; the
- *      centroid is the plate centre and the spread gives its radius.
+ *      centroid is the plate centre, the spread gives its radius, and how
+ *      squashed the spread is gives the angle it is being seen from — a plate
+ *      is a circle, so the ellipse it arrives as is the projection.
  *   4. Reject implausible results (too small, too large, too eccentric) and
  *      smooth what survives, so the dish does not jitter while the diner's
  *      hand shakes.
@@ -24,9 +30,34 @@
  * constants testable in isolation.
  */
 
-/** Analysis resolution. Small on purpose — see the note above. */
+/** Analysis resolution for a 4:3 frame. Small on purpose — see the note above. */
 export const SAMPLE_WIDTH = 64;
 export const SAMPLE_HEIGHT = 48;
+
+/** The pixel budget every sample size is cut to, whatever the camera's shape. */
+export const SAMPLE_PIXELS = SAMPLE_WIDTH * SAMPLE_HEIGHT;
+
+/**
+ * The buffer to downsample a camera frame into.
+ *
+ * Same cost per frame as the fixed 64x48 it replaces, but the camera's aspect
+ * ratio survives, which is the difference between finding a plate and not: a
+ * phone held upright hands over a 9:16 stream, and forcing that into a 4:3
+ * buffer stretches a plate to two and a half times as wide as it is tall.
+ */
+export function sampleSizeFor(
+  frameWidth: number,
+  frameHeight: number,
+): { width: number; height: number } {
+  if (!(frameWidth > 0) || !(frameHeight > 0)) {
+    return { width: SAMPLE_WIDTH, height: SAMPLE_HEIGHT };
+  }
+  const scale = Math.sqrt(SAMPLE_PIXELS / (frameWidth * frameHeight));
+  return {
+    width: Math.max(16, Math.round(frameWidth * scale)),
+    height: Math.max(16, Math.round(frameHeight * scale)),
+  };
+}
 
 /** A pixel must be at least this bright (0–1) to be plate-like. */
 const MIN_LUMINANCE = 0.55;
@@ -37,8 +68,15 @@ const MAX_SATURATION = 0.22;
 const MIN_AREA_RATIO = 0.035;
 const MAX_AREA_RATIO = 0.72;
 
-/** Above this the blob is a wall or a tablecloth, not a plate. */
-const MAX_ECCENTRICITY = 2.1;
+/**
+ * Above this the blob is a table edge or a window, not a plate.
+ *
+ * Three, not two: a circle seen from an angle of `a` above the table arrives
+ * squashed by `sin(a)`, so a limit of two would throw away every plate seen
+ * from lower than thirty degrees — which is most of them, because that is
+ * where a seated diner's phone is. Three reaches down to about twenty.
+ */
+const MAX_ECCENTRICITY = 3;
 
 /** Consecutive good frames before the anchor locks. */
 const FRAMES_TO_LOCK = 6;
@@ -48,12 +86,37 @@ const FRAMES_TO_RELEASE = 20;
 /** Exponential smoothing factor for the anchor pose. */
 const SMOOTHING = 0.18;
 
+/**
+ * The angle to assume when none was measured, as a sine — about 21 degrees
+ * above the table, which is roughly where a seated diner's phone is.
+ */
+export const DEFAULT_FLATNESS = 0.352;
+
+/**
+ * The viewing angle a `flatness` implies, in radians.
+ *
+ * Clamped at the bottom because a plate measured as almost edge-on is far more
+ * likely to be a bad read than a diner holding their phone flat on the table,
+ * and a dish drawn edge-on is a wall of noodles rather than a dish.
+ */
+export function tiltFor(flatness: number): number {
+  if (!Number.isFinite(flatness)) return Math.asin(DEFAULT_FLATNESS);
+  return Math.asin(Math.min(1, Math.max(0.22, flatness)));
+}
+
 export interface PlateObservation {
   /** Centre in normalised device coordinates, x and y both in [-1, 1]. */
   x: number;
   y: number;
   /** Radius as a fraction of half the frame height. */
   radius: number;
+  /**
+   * Minor axis over major, 0–1. A plate seen from straight above arrives as a
+   * circle and this is 1; a plate across a table from a seated diner arrives
+   * squashed and this is nearer 0.35. It is the sine of the angle the plate is
+   * being viewed from, which is the only angle anything here has.
+   */
+  flatness: number;
   /** 0–1. Combines area plausibility and how circular the blob is. */
   confidence: number;
 }
@@ -169,6 +232,7 @@ export function detectPlate(
     x: (meanX / width) * 2 - 1,
     y: -((meanY / height) * 2 - 1),
     radius: radiusPx / (height / 2),
+    flatness: Math.min(sigmaX, sigmaY) / Math.max(sigmaX, sigmaY),
     confidence,
   };
 }
@@ -215,6 +279,7 @@ export class PlateTracker {
           x: lerp(this.anchor.x, observation.x, SMOOTHING),
           y: lerp(this.anchor.y, observation.y, SMOOTHING),
           radius: lerp(this.anchor.radius, observation.radius, SMOOTHING),
+          flatness: lerp(this.anchor.flatness, observation.flatness, SMOOTHING),
           confidence: lerp(
             this.anchor.confidence,
             observation.confidence,
@@ -235,7 +300,8 @@ export class PlateTracker {
    * the surface is glass, dark wood, or a patterned tablecloth.
    */
   placeManually(x: number, y: number, radius = 0.42): TrackerSnapshot {
-    this.anchor = { x, y, radius, confidence: 1 };
+    // Nothing was measured, so the angle is the one a seated diner usually has.
+    this.anchor = { x, y, radius, flatness: DEFAULT_FLATNESS, confidence: 1 };
     this.state = "manual";
     this.goodFrames = 0;
     this.badFrames = 0;
@@ -278,6 +344,38 @@ export interface AnchorPose {
  * The camera looks down -Z from the origin, so camera space is world space and
  * no matrix work is needed.
  */
+/**
+ * Re-expresses an observation of the camera frame in the coordinates of what
+ * the diner is actually looking at.
+ *
+ * The feed is shown with `object-fit: cover`, so a portrait viewport throws
+ * away the sides of a wider frame and a landscape one throws away the top and
+ * bottom. Skip this and the dish is placed where the plate sits in the
+ * *stream*, which on a phone is a few centimetres from where it sits on screen.
+ */
+export function toViewport(
+  observation: PlateObservation,
+  frameAspect: number,
+  viewAspect: number,
+): PlateObservation {
+  if (!(frameAspect > 0) || !(viewAspect > 0)) return observation;
+
+  // Exactly one of these is 1: the axis the frame was fitted on.
+  const kx = Math.max(1, frameAspect / viewAspect);
+  const ky = Math.max(1, viewAspect / frameAspect);
+
+  return {
+    x: observation.x * kx,
+    y: observation.y * ky,
+    // Cropping cannot squash a circle, so the measured angle is untouched.
+    flatness: observation.flatness,
+    // A fraction of half the frame height becomes a fraction of half the
+    // viewport's, which is what `projectAnchor` reads it as.
+    radius: observation.radius * ky,
+    confidence: observation.confidence,
+  };
+}
+
 export function projectAnchor(
   anchor: PlateObservation,
   options: { fovDegrees: number; aspect: number; distance: number },

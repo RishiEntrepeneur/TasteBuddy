@@ -29,6 +29,10 @@ import {
   PlateTracker,
   SAMPLE_HEIGHT,
   SAMPLE_WIDTH,
+  DEFAULT_FLATNESS,
+  sampleSizeFor,
+  tiltFor,
+  toViewport,
   projectAnchor,
   type AnchorPose,
   type PlateObservation,
@@ -95,15 +99,17 @@ const FALLBACK_DISTANCE_M = 0.75;
 const CAMERA_FOV_DEGREES = 55;
 
 /**
- * Preview tilt, in radians, used only before the plate is tracked.
+ * The tilt to draw the dish at before anything has been measured, in radians.
  *
- * A plate is a flat disc: viewed along the camera axis it collapses to a
- * sliver. Once tracking locks, the measured anchor gives the real angle and
- * this drops to zero.
+ * A plate is a flat disc: drawn square-on to the camera axis it collapses to a
+ * sliver of rim and a wall of whatever is in it. There is no device pose to
+ * take a real angle from — no WebXR, no orientation events — so the angle
+ * comes from the plate's own foreshortening once the tracker has one, and from
+ * this until then.
  */
 // Positive rotates the plate's top surface toward the camera (Y toward +Z);
 // negative tips it away and shows the underside of the bowl.
-const PREVIEW_TILT = 0.36;
+const PREVIEW_TILT = tiltFor(DEFAULT_FLATNESS);
 
 interface TasteBuddyARViewerProps {
   item: ARDish;
@@ -190,7 +196,9 @@ function AnchoredDish({
     return 2 * halfHeight * aspect;
   }, [size.width, size.height]);
 
-  const tilt = trackingState === "locked" ? 0 : PREVIEW_TILT;
+  // How squashed the plate arrived is the angle it is being seen from, and it
+  // is the only angle available. Zero would draw the dish edge-on.
+  const tilt = anchor ? tiltFor(anchor.flatness) : PREVIEW_TILT;
 
   return (
     <group ref={group} position={pose.position} rotation={[tilt, 0, 0]}>
@@ -211,12 +219,17 @@ function AnchoredDish({
       </mesh>
 
       {item.clashes.length > 0 ? (
-        <AllergenWarningOverlay
-          radius={dishRadius}
-          maxWidth={visibleWidth * 0.88}
-          clashes={item.clashes}
-          reducedMotion={reducedMotion}
-        />
+        // Undoes the dish's tilt. The banner sits above the food, so tipping
+        // the dish toward the camera swings the banner forward with it and it
+        // is drawn wider than the frame — the one thing a warning must not be.
+        <group rotation={[-tilt, 0, 0]}>
+          <AllergenWarningOverlay
+            radius={dishRadius}
+            maxWidth={visibleWidth * 0.88}
+            clashes={item.clashes}
+            reducedMotion={reducedMotion}
+          />
+        </group>
       ) : null}
     </group>
   );
@@ -350,11 +363,35 @@ export function TasteBuddyARViewer({
       const video = videoRef.current;
       if (!video || video.readyState < 2 || video.videoWidth === 0) return;
 
+      // The camera's shape, not the buffer's: a phone held upright sends a
+      // portrait stream, and squashing that into a fixed landscape buffer
+      // turns every plate into an ellipse too wide for the tracker to accept.
+      const { width, height } = sampleSizeFor(video.videoWidth, video.videoHeight);
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
       try {
-        context.drawImage(video, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
-        const frame = context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
-        const snapshot = trackerRef.current.update(frame.data);
-        setAnchor(snapshot.anchor);
+        context.drawImage(video, 0, 0, width, height);
+        const frame = context.getImageData(0, 0, width, height);
+        const snapshot = trackerRef.current.update(frame.data, width, height);
+
+        // What the tracker measured is in the stream's coordinates; the feed
+        // is on screen under `object-fit: cover`, which crops it. A hand
+        // placement already came from the screen, so it is left alone.
+        const viewWidth = video.clientWidth;
+        const viewHeight = video.clientHeight;
+        const anchored =
+          snapshot.anchor && snapshot.state !== "manual" && viewHeight > 0
+            ? toViewport(
+                snapshot.anchor,
+                video.videoWidth / video.videoHeight,
+                viewWidth / viewHeight,
+              )
+            : snapshot.anchor;
+
+        setAnchor(anchored);
         setTrackingState(snapshot.state);
       } catch {
         // A tainted canvas or a torn-down stream must not kill the loop.

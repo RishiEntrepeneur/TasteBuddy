@@ -25,13 +25,41 @@ interface DishModelProps {
   portion: number;
 }
 
-/** Fits an object's bounding box into `targetDiameter` on its longest axis. */
-function fitScale(object: THREE.Object3D, targetDiameter: number): number {
-  const box = new THREE.Box3().setFromObject(object);
-  const size = box.getSize(new THREE.Vector3());
+/**
+ * The object's own size, in its own units, along its longest axis.
+ *
+ * Measured with the object's scale reset first, and that is the whole point:
+ * `setFromObject` walks world matrices, so measuring a mesh that is already
+ * scaled to fit returns the fitted size. Divide by that and the scale comes
+ * back as 1 — the mesh springs to its native size the moment the target
+ * changes, which on a tracked plate is every frame.
+ */
+function intrinsicSize(object: THREE.Object3D): number {
+  const scale = object.scale.clone();
+  object.scale.set(1, 1, 1);
+  object.updateMatrixWorld(true);
+
+  const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
+
+  object.scale.copy(scale);
+  object.updateMatrixWorld(true);
+
   const longest = Math.max(size.x, size.y, size.z);
-  if (!Number.isFinite(longest) || longest <= 0) return 1;
-  return targetDiameter / longest;
+  return Number.isFinite(longest) && longest > 0 ? longest : 1;
+}
+
+/** The bottom of the object, in its own units, so it can sit on the plate. */
+function intrinsicFloor(object: THREE.Object3D): number {
+  const scale = object.scale.clone();
+  object.scale.set(1, 1, 1);
+  object.updateMatrixWorld(true);
+
+  const { min } = new THREE.Box3().setFromObject(object);
+
+  object.scale.copy(scale);
+  object.updateMatrixWorld(true);
+
+  return Number.isFinite(min.y) ? min.y : 0;
 }
 
 function GltfDish({
@@ -56,20 +84,19 @@ function GltfDish({
     return clone;
   }, [scene]);
 
-  const baseScale = useMemo(
-    () => fitScale(model, targetDiameter),
-    [model, targetDiameter],
+  // Measured once per model, never per target: see `intrinsicSize`.
+  const own = useMemo(
+    () => ({ longest: intrinsicSize(model), floor: intrinsicFloor(model) }),
+    [model],
   );
+  const baseScale = targetDiameter / own.longest;
 
   // Volume scales with the portion, so each linear dimension scales with its
   // cube root — a "double portion" is not a dish twice as wide.
   const scale = baseScale * Math.cbrt(portion);
 
   // Sit the mesh on the plate rather than through it.
-  const yOffset = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(model);
-    return -box.min.y * baseScale;
-  }, [model, baseScale]);
+  const yOffset = -own.floor * baseScale;
 
   return (
     <primitive
@@ -94,10 +121,8 @@ function ProceduralDish({ text, targetDiameter, portion }: DishModelProps) {
   // Built imperatively, so nothing else will release it.
   useEffect(() => built.dispose, [built]);
 
-  const baseScale = useMemo(
-    () => fitScale(built.group, targetDiameter),
-    [built, targetDiameter],
-  );
+  const longest = useMemo(() => intrinsicSize(built.group), [built]);
+  const baseScale = targetDiameter / longest;
 
   // Volume scales with the portion, so each linear dimension takes its cube
   // root — the same rule the generated meshes follow.
