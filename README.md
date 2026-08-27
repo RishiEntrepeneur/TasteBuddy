@@ -210,6 +210,14 @@ DISH_IMAGES=off                  # no drawings; the 3D model only
 DISH_IMAGE_HOST=https://…/       # a different generator, or a stand-in
 ```
 
+To see whether the drawings are any good without deploying anything, open
+`scripts/drawings-check.html` in a browser. It calls the same service with the
+same prompt for a dozen dishes and lays them out side by side, and the style
+line is editable so a better one can be found by trying. It carries its own
+copy of `cleanDishName` and `promptFor`, which is duplication on purpose — it
+has to run from a file with no build step — so a change to `lib/dish/picture.ts`
+belongs in both.
+
 ## The offline demo
 
 ```bash

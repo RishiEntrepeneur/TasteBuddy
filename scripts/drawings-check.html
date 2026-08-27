@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TasteBuddy — do the drawings look good?</title>
+<style>
+  :root{--bg:#f7f7f5;--card:#fff;--line:#e7e7e2;--ink:#15181a;--ink2:#6c7275;--ink3:#9aa0a2;--alert:#a8321f}
+  @media (prefers-color-scheme:dark){:root{--bg:#0e1011;--card:#17191b;--line:#272b2d;--ink:#e9ebea;--ink2:#9aa1a3;--ink3:#737a7c;--alert:#f08a76}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  p.lede{margin:0 0 20px;color:var(--ink2);max-width:70ch}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:12px}
+  label{font:600 11px/1 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+  textarea,input{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{background:var(--ink);color:var(--card);border:0;border-radius:999px;padding:10px 18px;font:600 14px/1 inherit;cursor:pointer}
+  button.ghost{background:transparent;color:var(--ink2);border:1px solid var(--line)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+  figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .shot{position:relative;aspect-ratio:4/3;background:var(--bg);display:grid;place-items:center}
+  .shot img{width:100%;height:100%;object-fit:cover;display:block}
+  .spin{width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--ink3);border-radius:50%;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .bad{color:var(--alert);font:12px/1.4 ui-monospace,monospace;padding:0 12px;text-align:center}
+  figcaption{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px}
+  .name{font-weight:600;font-size:14.5px}
+  .sent{font:11px/1.45 ui-monospace,monospace;color:var(--ink3);word-break:break-word;max-height:4.4em;overflow:auto}
+  .note{font:12px/1.5 ui-monospace,monospace;color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Do the drawings look good?</h1>
+  <p class="lede">
+    This calls pollinations.ai straight from your browser with <strong>exactly the prompt the app sends</strong> —
+    same cleaning, same seed, same wording. Nothing is deployed and nothing is saved. If they look
+    wrong, edit the style line below and press Redraw until they don't, then send me the line that worked.
+  </p>
+
+  <div class="panel">
+    <div>
+      <label for="style">The style line the app sends</label>
+      <textarea id="style" rows="3"></textarea>
+    </div>
+    <div>
+      <label for="extra">Add your own dishes, separated by commas</label>
+      <input id="extra" placeholder="idli, khachapuri, jollof rice">
+    </div>
+    <div class="row">
+      <button id="go">Redraw</button>
+      <button id="reset" class="ghost">Back to the app's wording</button>
+      <span class="note" id="count"></span>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+   Ported verbatim from lib/dish/picture.ts, so what you see here is what the
+   deployed app will ask for. Change it there and change it here.
+   --------------------------------------------------------------------------- */
+
+const HOST = "https://image.pollinations.ai/prompt/";
+const WIDTH = 768, HEIGHT = 576;
+
+function cleanDishName(raw) {
+  if (typeof raw !== "string") return "";
+  return raw.normalize("NFC")
+    .replace(/[^\p{L}\p{M}\p{N}\s'’\-()]/gu, " ")
+    .replace(/-{2,}/g, "-")
+    .replace(/\s+/g, " ")
+    .trim().slice(0, 60);
+}
+
+function seedFor(text) {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+const STYLE = [
+  "flat illustration, gouache and coloured pencil, soft matte colour",
+  "three-quarter view from slightly above, centred, plain warm neutral background",
+  "no text, no words, no letters, no logo, no people, no hands, no menu",
+].join(", ");
+
+function promptFor(dish, style) {
+  return `${dish}, a single serving of the dish on a plain plate, ${style}`;
+}
+
+/* -- the dishes, straight out of demo/dishes.ts ---------------------------- */
+
+const DISHES = [
+  "Idli", "Masala dosa", "Bún chả", "Pad thai", "Ramen", "Khachapuri",
+  "Hummus", "Gyoza", "Paella", "Baklava", "Pav bhaji", "Tacos al pastor",
+];
+
+const grid = document.getElementById("grid");
+const styleBox = document.getElementById("style");
+const extraBox = document.getElementById("extra");
+const count = document.getElementById("count");
+styleBox.value = STYLE;
+
+function draw() {
+  const style = styleBox.value.trim() || STYLE;
+  const extra = extraBox.value.split(",").map((s) => s.trim()).filter(Boolean);
+  const all = [...DISHES, ...extra];
+  count.textContent = `${all.length} dishes · each one is a fresh request, give it a minute`;
+
+  grid.innerHTML = "";
+  for (const raw of all) {
+    const dish = cleanDishName(raw);
+    if (dish.length < 2) continue;
+
+    const prompt = promptFor(dish, style);
+    const url = new URL(HOST + encodeURIComponent(prompt));
+    url.searchParams.set("width", String(WIDTH));
+    url.searchParams.set("height", String(HEIGHT));
+    url.searchParams.set("seed", String(seedFor(dish)));
+    url.searchParams.set("nologo", "true");
+    url.searchParams.set("safe", "true");
+
+    const fig = document.createElement("figure");
+    const shot = document.createElement("div");
+    shot.className = "shot";
+    const spin = document.createElement("div");
+    spin.className = "spin";
+    shot.appendChild(spin);
+
+    const img = new Image();
+    img.alt = `A drawing of ${dish}`;
+    img.onload = () => { shot.innerHTML = ""; shot.appendChild(img); };
+    img.onerror = () => {
+      shot.innerHTML = "";
+      const bad = document.createElement("p");
+      bad.className = "bad";
+      bad.textContent = "no drawing came back";
+      shot.appendChild(bad);
+    };
+    img.src = url.toString();
+
+    const cap = document.createElement("figcaption");
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = dish;
+    const sent = document.createElement("span");
+    sent.className = "sent";
+    sent.textContent = prompt;
+    cap.append(name, sent);
+
+    fig.append(shot, cap);
+    grid.appendChild(fig);
+  }
+}
+
+document.getElementById("go").addEventListener("click", draw);
+document.getElementById("reset").addEventListener("click", () => {
+  styleBox.value = STYLE;
+  draw();
+});
+extraBox.addEventListener("keydown", (e) => { if (e.key === "Enter") draw(); });
+draw();
+</script>
+</body>
+</html>
