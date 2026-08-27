@@ -17,8 +17,10 @@ import { buildDish } from "@/lib/ar/dish-geometry";
 
 interface DishModelProps {
   url: string | null;
-  /** Dish name, plus its description when there is one — picks the recipe. */
-  text: string;
+  /** The dish's name. Picks the recipe. */
+  name: string;
+  /** What is in it, consulted only when the name says nothing. */
+  description?: string;
   /** World diameter to fit the dish into, in metres. */
   targetDiameter: number;
   /** Portion multiplier. Volume is linear in this, so length goes as its cube root. */
@@ -115,8 +117,11 @@ function GltfDish({
  * has nothing meaningful to scale. The recipe is deterministic, so a dish plates
  * identically every time it is opened.
  */
-function ProceduralDish({ text, targetDiameter, portion }: DishModelProps) {
-  const built = useMemo(() => buildDish({ text }), [text]);
+function ProceduralDish({ name, description, targetDiameter, portion }: DishModelProps) {
+  const built = useMemo(
+    () => buildDish({ name, description }),
+    [name, description],
+  );
 
   // Built imperatively, so nothing else will release it.
   useEffect(() => built.dispose, [built]);

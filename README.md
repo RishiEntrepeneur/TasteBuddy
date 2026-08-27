@@ -136,6 +136,7 @@ npm run lint
 npm run build
 npm run verify:tracker    # 62 checks on the plate-finding vision pass
 npm run verify:contrast   # every colour that carries text, measured
+npm run verify:shapes     # the recipe each dish name picks
 ```
 
 `verify:contrast` exists because an alert nobody can read is worse than no
@@ -165,6 +166,28 @@ reading by vertical position alone attaches every one of them to the wrong row.
 
 Drop your own photo in and it prints what came back for you to read. Add a
 `your-menu.expected.json` beside it and it scores that too.
+
+## The offline demo
+
+```bash
+npm run demo:build     # writes demo/dist/tastebuddy-demo.html
+```
+
+One HTML file, about 1.6 MB, that reaches for nothing at all: no server, no
+font host, no network. It is the real app — `components/` and `lib/` bundled
+untouched — with one substitution. `demo/kitchen.ts` sits in front of `fetch`
+and answers the two API routes from a list of dishes in `demo/dishes.ts`,
+because a page opened from a file, or published somewhere that will not let it
+call out, has nothing to ask.
+
+Two things it deliberately does not fake. A dish outside the list comes back
+`recognised: false` rather than invented, which is what the real model does
+with a dish it does not know and what the screens already handle. And the
+camera button does not pretend to have read your photo: it returns a fixed
+sample menu and says so in the `notes` line the menu screen already prints.
+
+It is a demo, not a substitute. Reading a menu needs the model, and the model
+needs a key.
 
 ## Layout
 

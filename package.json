@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "verify:tracker": "tsx scripts/verify-plate-tracker.ts",
     "verify:contrast": "tsx scripts/verify-brand-contrast.ts",
-    "try:menu": "tsx scripts/try-menu.ts"
+    "try:menu": "tsx scripts/try-menu.ts",
+    "verify:shapes": "tsx scripts/verify-dish-shapes.ts",
+    "demo:build": "next build && node demo/build.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

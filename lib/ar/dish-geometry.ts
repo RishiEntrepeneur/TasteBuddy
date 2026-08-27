@@ -46,13 +46,17 @@ export interface BuiltDish {
 /**
  * First match wins, so the order encodes precedence: a noodle *soup* is a soup,
  * and a rice dish is only rice once the soups have had their turn.
+ *
+ * The short words are anchored on word boundaries, which is not fussiness: an
+ * unanchored `tea` matches "tear the crust off", "steamed" and "instead", and
+ * a cheese bread rendered as a glass of iced tea is what that costs.
  */
 const MATCHERS: readonly (readonly [DishArchetype, RegExp])[] = [
   [
     "drink",
-    /coffee|cà phê|espresso|latte|tea|juice|soda|cocktail|beer|wine|smoothie/i,
+    /coffee|cà phê|espresso|latte|\btea\b|\bjuice\b|\bsoda\b|cocktail|\bbeer\b|\bwine\b|smoothie/i,
   ],
-  ["soup", /pho|phở|ramen|broth|soup|curry|stew|laksa|bisque|chowder/i],
+  ["soup", /\bpho\b|phở|ramen|broth|soup|curry|stew|laksa|bisque|chowder/i],
   [
     "seafood",
     /octopus|squid|prawn|shrimp|crab|lobster|mussel|clam|oyster|bream|bass|salmon|cod|fish|seafood|cuốn/i,
@@ -73,10 +77,44 @@ const MATCHERS: readonly (readonly [DishArchetype, RegExp])[] = [
   ],
 ];
 
-export function pickArchetype(text: string): DishArchetype {
+/**
+ * The archetypes worth inferring from an ingredient list, in the order to try.
+ *
+ * The name says what a dish *is*; the description only says what is in it, and
+ * those are different questions. Hummus is not a drink because there is lemon
+ * juice in it, and pad thai is not a seafood plate because there is dried
+ * shrimp in the sauce — so `drink` never comes from a description at all, and
+ * the shape of the dish is asked about before its protein.
+ */
+const FROM_DESCRIPTION: readonly DishArchetype[] = [
+  "soup",
+  "noodles",
+  "risotto",
+  "salad",
+  "cake",
+  "seafood",
+  "roast",
+];
+
+/**
+ * Picks the shape to build.
+ *
+ * `name` is asked first and against everything. `description` is a fallback for
+ * the many dishes whose names carry no clue at all — bibimbap, okonomiyaki,
+ * tteokbokki — and is only allowed to answer the narrower question above.
+ */
+export function pickArchetype(name: string, description = ""): DishArchetype {
   for (const [archetype, pattern] of MATCHERS) {
-    if (pattern.test(text)) return archetype;
+    if (pattern.test(name)) return archetype;
   }
+
+  if (description) {
+    for (const wanted of FROM_DESCRIPTION) {
+      const match = MATCHERS.find(([archetype]) => archetype === wanted);
+      if (match && match[1].test(description)) return wanted;
+    }
+  }
+
   return "generic";
 }
 
@@ -815,9 +853,11 @@ const RECIPES: Readonly<Record<DishArchetype, Recipe>> = {
 /* -------------------------------------------------------------------------- */
 
 export interface BuildDishOptions {
-  /** Dish name, and optionally its description — used to choose the recipe. */
-  text: string;
-  /** Overrides the archetype the text would have selected. */
+  /** The dish's name. What it is, and the first thing asked. */
+  name: string;
+  /** What is in it. A fallback for names that carry no clue — see `pickArchetype`. */
+  description?: string;
+  /** Overrides the archetype the name and description would have selected. */
   archetype?: DishArchetype;
 }
 
@@ -845,8 +885,10 @@ function countTriangles(root: THREE.Object3D): number {
  * The caller owns the result and must call `dispose()` when it unmounts.
  */
 export function buildDish(options: BuildDishOptions): BuiltDish {
-  const archetype = options.archetype ?? pickArchetype(options.text);
-  const builder = new Builder(makeRand(hashSeed(options.text || archetype)));
+  const archetype =
+    options.archetype ?? pickArchetype(options.name, options.description);
+  const seed = `${options.name} ${options.description ?? ""}`.trim();
+  const builder = new Builder(makeRand(hashSeed(seed || archetype)));
 
   RECIPES[archetype](builder);
 

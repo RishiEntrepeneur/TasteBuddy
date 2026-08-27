@@ -72,7 +72,8 @@ export function DishScreen({
       <div className="px-4">
         <section className="card overflow-hidden rise">
           <DishPreview3D
-            text={`${dish.printedName} ${dish.englishName} ${dish.whatItIs}`}
+            name={`${dish.printedName} ${dish.englishName}`.trim()}
+            description={dish.whatItIs}
           />
 
           <div className="px-5 pb-5 pt-4">

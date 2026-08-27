@@ -205,7 +205,8 @@ function AnchoredDish({
       <Suspense fallback={null}>
         <DishModel
           url={null}
-          text={`${item.name} ${item.description}`}
+          name={item.name}
+          description={item.description}
           targetDiameter={targetDiameter}
           portion={1}
         />

@@ -41,8 +41,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Generated 3D assets — content-addressed build artefacts, never source.
-/public/assets/models/*
-!/public/assets/models/.gitkeep
-/public/assets/source/*
-!/public/assets/source/.gitkeep
+# The one-file demo build. Reproduce it with `npm run demo:build`.
+demo/dist/

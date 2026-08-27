@@ -23,10 +23,13 @@ import { DishModel } from "@/components/ar/DishModel";
 
 interface DishPreview3DProps {
   /** Dish name plus its description; both feed the archetype choice. */
-  text: string;
+  /** The dish's name. */
+  name: string;
+  /** What is in it. Only consulted when the name says nothing. */
+  description?: string;
 }
 
-export function DishPreview3D({ text }: DishPreview3DProps) {
+export function DishPreview3D({ name, description }: DishPreview3DProps) {
   return (
     <figure className="m-0">
       <div className="relative aspect-[5/4] w-full overflow-hidden bg-sunk">
@@ -44,7 +47,13 @@ export function DishPreview3D({ text }: DishPreview3DProps) {
           <directionalLight position={[-0.5, 0.4, -0.3]} intensity={0.35} />
 
           <Suspense fallback={null}>
-            <DishModel url={null} text={text} targetDiameter={0.25} portion={1} />
+            <DishModel
+              url={null}
+              name={name}
+              description={description}
+              targetDiameter={0.25}
+              portion={1}
+            />
           </Suspense>
 
           {/*
