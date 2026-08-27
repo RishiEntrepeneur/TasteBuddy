@@ -433,3 +433,53 @@ DROP INDEX IF EXISTS asset_3d_checksum_idx;
 CREATE INDEX IF NOT EXISTS asset_3d_checksum_idx
   ON asset_3d (source_checksum)
   WHERE source_checksum IS NOT NULL;
+
+-- ============================================================================
+--  Migration 005 — menu photo imports
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+--  menu_import_runs
+--
+--  One row per menu photo read by the vision model. Three jobs:
+--
+--    Cost.   A vision call costs real money and a venue can point a camera at
+--            anything. The hourly count per venue is read straight off this
+--            table, so the limit holds across serverless containers rather
+--            than per-instance like an in-memory counter would.
+--
+--    Audit.  When a wrong price or a mangled dish name reaches a menu, this
+--            says which photo it came from and when — the difference between
+--            fixing one dish and re-checking the whole menu.
+--
+--    Honesty about what was reviewed. `dish_count` is what the model read;
+--            `committed_count` is what staff actually kept. A gap between them
+--            is the signal that the photo was poor.
+--
+--  Deliberately absent: anything the model said about allergens. It is not
+--  asked, and there is no column here that could carry such an answer forward.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS menu_import_runs (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  restaurant_id    UUID NOT NULL REFERENCES restaurants (id) ON DELETE CASCADE,
+  -- Hex SHA-256 of the uploaded photo. The same menu re-read shows up as a
+  -- repeat rather than as a new source of truth.
+  source_checksum  CHAR(64) NOT NULL,
+  -- Dishes the model returned, before staff review.
+  dish_count       INTEGER NOT NULL DEFAULT 0,
+  -- Dishes staff kept. Null until they commit; 0 if they discarded the lot.
+  committed_count  INTEGER,
+  input_tokens     INTEGER NOT NULL DEFAULT 0,
+  output_tokens    INTEGER NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  committed_at     TIMESTAMPTZ
+);
+
+-- The rate-limit query: "how many reads has this venue had in the last hour".
+CREATE INDEX IF NOT EXISTS menu_import_runs_venue_idx
+  ON menu_import_runs (restaurant_id, created_at DESC);
+
+-- Spotting a venue re-reading the same photo over and over.
+CREATE INDEX IF NOT EXISTS menu_import_runs_checksum_idx
+  ON menu_import_runs (source_checksum);

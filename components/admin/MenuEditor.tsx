@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Camera,
   ExternalLink,
   Eye,
   EyeOff,
@@ -19,6 +20,7 @@ import {
   type CatalogueEntry,
   type DishDraft,
 } from "@/components/admin/DishForm";
+import { MenuImport } from "@/components/admin/MenuImport";
 import { formatPrice } from "@/lib/nutrition";
 import type { MenuCategory, MenuItem, Restaurant } from "@/lib/types";
 
@@ -35,6 +37,7 @@ interface Loaded {
   restaurant: Restaurant;
   items: MenuItem[];
   catalogue: CatalogueEntry[];
+  capabilities?: { menuImport?: boolean };
 }
 
 const COURSE_ORDER: readonly MenuCategory[] = [
@@ -54,6 +57,7 @@ export function MenuEditor() {
   } | null>(null);
   const [data, setData] = useState<Loaded | null>(null);
   const [editing, setEditing] = useState<DishDraft | null>(null);
+  const [importing, setImporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -247,7 +251,21 @@ export function MenuEditor() {
           </p>
         ) : null}
 
-        {editing ? (
+        {importing ? (
+          <MenuImport
+            currency={data?.restaurant.currency ?? "GBP"}
+            locale={data?.restaurant.locale ?? "en-GB"}
+            onImported={(count) => {
+              setNotice(
+                count === 1
+                  ? "1 dish added as a draft. Declare its allergens before switching it on."
+                  : `${count} dishes added as drafts. Declare their allergens before switching them on.`,
+              );
+              reload();
+            }}
+            onCancel={() => setImporting(false)}
+          />
+        ) : editing ? (
           <section className="rounded-card border border-border bg-surface-raised p-5">
             <h2 className="mb-4 text-lg font-semibold text-ink">
               {editing.id ? "Edit dish" : "New dish"}
@@ -268,17 +286,33 @@ export function MenuEditor() {
           </section>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => {
-                setEditing(draftFromItem(null));
-                setNotice(null);
-              }}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-4 py-3 text-sm font-semibold text-surface transition"
-            >
-              <Plus className="size-4" aria-hidden />
-              Add a dish
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(draftFromItem(null));
+                  setNotice(null);
+                }}
+                className="flex min-w-40 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 py-3 text-sm font-semibold text-surface transition"
+              >
+                <Plus className="size-4" aria-hidden />
+                Add a dish
+              </button>
+
+              {data?.capabilities?.menuImport ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImporting(true);
+                    setNotice(null);
+                  }}
+                  className="flex min-w-40 flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-3 text-sm font-semibold text-ink transition hover:border-ink"
+                >
+                  <Camera className="size-4" aria-hidden />
+                  Import from a photo
+                </button>
+              ) : null}
+            </div>
 
             {data === null ? (
               <p className="flex items-center gap-2 py-10 text-sm text-ink-muted">

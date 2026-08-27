@@ -466,3 +466,107 @@ export async function persistGeneratedAsset(
     );
   });
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Menu photo imports                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Reads per venue per hour.
+ *
+ * A vision call costs real money and the upload control accepts any photo a
+ * phone can take, so an accidental loop or an over-enthusiastic member of
+ * staff should cost a few pounds rather than an afternoon's revenue. Twelve is
+ * generous for the real job — a menu is one to four photos — while capping the
+ * damage.
+ */
+export const MENU_IMPORT_HOURLY_LIMIT = 12;
+
+/** Reads by this venue in the last hour. Used to decide whether to spend. */
+export async function recentImportCount(restaurantId: string): Promise<number> {
+  if (!isDatabaseConfigured()) return devImportRuns.length;
+
+  const rows = await query<{ count: string }>(
+    `SELECT count(*)::text AS count
+       FROM menu_import_runs
+      WHERE restaurant_id = $1::uuid
+        AND created_at > now() - interval '1 hour'`,
+    [restaurantId],
+  );
+  return Number(rows[0]?.count ?? 0);
+}
+
+export interface ImportRunRecord {
+  restaurantId: string;
+  sourceChecksum: string;
+  dishCount: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Without a database the editor still has to rate-limit, so runs are kept in
+ * memory. Per-container and lost on restart, which is fine for the seed mode
+ * this branch serves; the real limit is the SQL one above.
+ */
+const devImportRuns: { id: string; at: number }[] = [];
+
+function pruneDevImportRuns(): void {
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  while (devImportRuns.length && (devImportRuns[0]?.at ?? 0) < cutoff) {
+    devImportRuns.shift();
+  }
+}
+
+/** Records a read and returns its id, which the commit step reports back. */
+export async function recordImportRun(run: ImportRunRecord): Promise<string> {
+  if (!isDatabaseConfigured()) {
+    pruneDevImportRuns();
+    const id = `import_${devImportRuns.length}_${Date.now().toString(36)}`;
+    devImportRuns.push({ id, at: Date.now() });
+    return id;
+  }
+
+  const rows = await query<{ id: string }>(
+    `INSERT INTO menu_import_runs
+       (restaurant_id, source_checksum, dish_count, input_tokens, output_tokens)
+     VALUES ($1::uuid, $2, $3, $4, $5)
+     RETURNING id`,
+    [
+      run.restaurantId,
+      run.sourceChecksum,
+      run.dishCount,
+      run.inputTokens,
+      run.outputTokens,
+    ],
+  );
+
+  const id = rows[0]?.id;
+  if (!id) throw new Error("import_run_not_recorded");
+  return id;
+}
+
+/**
+ * Closes a run with what staff actually kept.
+ *
+ * Scoped by restaurant so a run id from another venue cannot be written to,
+ * and best effort — losing the audit line is not a reason to fail an import
+ * whose dishes are already saved.
+ */
+export async function closeImportRun(
+  restaurantId: string,
+  importId: string,
+  committedCount: number,
+): Promise<void> {
+  if (!isDatabaseConfigured()) return;
+  if (!/^[0-9a-f-]{36}$/i.test(importId)) return;
+
+  await query(
+    `UPDATE menu_import_runs
+        SET committed_count = $3, committed_at = now()
+      WHERE id = $2::uuid AND restaurant_id = $1::uuid`,
+    [restaurantId, importId, committedCount],
+  ).catch((error) => {
+    console.error("[admin-repository] import run not closed", error);
+  });
+}
