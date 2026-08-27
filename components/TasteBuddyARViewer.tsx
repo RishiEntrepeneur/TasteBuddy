@@ -55,6 +55,8 @@ export interface ARDish {
   description: string;
   /** Longest real-world edge of the plated dish, in metres. */
   realWorldScaleM: number;
+  /** False when the dish is not known: the plate is left empty. */
+  recognised: boolean;
   /** Only the ones that clash with this diner's profile. */
   clashes: LikelyAllergen[];
 }
@@ -68,6 +70,7 @@ export function arDishFrom(
     name: dish.printedName,
     description: `${dish.englishName} ${dish.whatItIs}`,
     realWorldScaleM: 0.22,
+    recognised: dish.recognised,
     clashes,
   };
 }
@@ -207,6 +210,7 @@ function AnchoredDish({
           url={null}
           name={item.name}
           description={item.description}
+          recognised={item.recognised}
           targetDiameter={targetDiameter}
           portion={1}
         />

@@ -21,6 +21,8 @@ interface DishModelProps {
   name: string;
   /** What is in it, consulted only when the name says nothing. */
   description?: string;
+  /** False when the dish is not known. Draws an empty plate. */
+  recognised?: boolean;
   /** World diameter to fit the dish into, in metres. */
   targetDiameter: number;
   /** Portion multiplier. Volume is linear in this, so length goes as its cube root. */
@@ -117,10 +119,16 @@ function GltfDish({
  * has nothing meaningful to scale. The recipe is deterministic, so a dish plates
  * identically every time it is opened.
  */
-function ProceduralDish({ name, description, targetDiameter, portion }: DishModelProps) {
+function ProceduralDish({
+  name,
+  description,
+  recognised,
+  targetDiameter,
+  portion,
+}: DishModelProps) {
   const built = useMemo(
-    () => buildDish({ name, description }),
-    [name, description],
+    () => buildDish({ name, description, recognised }),
+    [name, description, recognised],
   );
 
   // Built imperatively, so nothing else will release it.

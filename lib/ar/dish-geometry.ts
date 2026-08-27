@@ -29,7 +29,15 @@ export type DishArchetype =
   | "soup"
   | "seafood"
   | "drink"
-  | "generic";
+  | "steamed"
+  | "bread"
+  | "dumpling"
+  | "dip"
+  | "fried"
+  | "wrap"
+  | "generic"
+  /** Nothing is known about this dish, so nothing is drawn on the plate. */
+  | "unknown";
 
 export interface BuiltDish {
   group: THREE.Group;
@@ -56,7 +64,31 @@ const MATCHERS: readonly (readonly [DishArchetype, RegExp])[] = [
     "drink",
     /coffee|cà phê|espresso|latte|\btea\b|\bjuice\b|\bsoda\b|cocktail|\bbeer\b|\bwine\b|smoothie/i,
   ],
-  ["soup", /\bpho\b|phở|ramen|broth|soup|curry|stew|laksa|bisque|chowder/i],
+  [
+    "dumpling",
+    /dumpling|xiao long|xiaolongbao|gyoza|jiaozi|momo|pierogi|pelmeni|ravioli|tortellini|empanada|wonton|mandu|khinkali/i,
+  ],
+  ["soup", /\bpho\b|phở|ramen|broth|soup|curry|stew|laksa|bisque|chowder|\bdal\b|\bdaal\b|sambar|rasam/i],
+  [
+    "steamed",
+    /idli|\bbao\b|baozi|dim sum|mochi|tamale|dhokla|\btteok\b|tteokbokki|puttu|steamed bun|rice cake/i,
+  ],
+  [
+    "dip",
+    /hummus|houmous|guacamole|baba ganoush|tzatziki|\braita\b|chutney|\bsalsa\b|\bdip\b|tahini|taramasalata|\bmezze\b/i,
+  ],
+  [
+    "fried",
+    /falafel|tempura|karaage|katsu|croquet|croquet[ta]|fritter|pakora|\bvada\b|samosa|spring roll|churro|onion ring|schnitzel/i,
+  ],
+  [
+    "wrap",
+    /burrito|\btaco\b|tacos|shawarma|shwarma|\bkebab\b|\bdoner\b|döner|\bgyro\b|souvlaki|\bwrap\b|cuốn|quesadilla/i,
+  ],
+  [
+    "bread",
+    /\bnaan\b|\broti\b|paratha|chapati|\bpita\b|baguette|focaccia|ciabatta|injera|khachapuri|\bdosa\b|uttapam|\bpav\b|\bbun\b|brioche|sandwich|bánh mì|banh mi|\barepa\b|pancake|crêpe|\bcrepe\b|\btoast\b|\bbread\b/i,
+  ],
   [
     "seafood",
     /octopus|squid|prawn|shrimp|crab|lobster|mussel|clam|oyster|bream|bass|salmon|cod|fish|seafood|cuốn/i,
@@ -89,9 +121,15 @@ const MATCHERS: readonly (readonly [DishArchetype, RegExp])[] = [
 const FROM_DESCRIPTION: readonly DishArchetype[] = [
   "soup",
   "noodles",
+  "dumpling",
+  "steamed",
+  "bread",
   "risotto",
   "salad",
   "cake",
+  "fried",
+  "wrap",
+  "dip",
   "seafood",
   "roast",
 ];
@@ -819,6 +857,237 @@ const RECIPES: Readonly<Record<DishArchetype, Recipe>> = {
     }
   },
 
+  /**
+   * Nothing on the plate.
+   *
+   * When the dish is not recognised there is no honest shape to draw, and a
+   * plate of confident-looking food under a name nobody knows is the same lie
+   * as a green tick on an unknown dish — worse, because a picture is believed
+   * faster than a sentence. So: the plate, and nothing on it.
+   */
+  unknown(b) {
+    addVessel(b, "plate");
+  },
+
+  /** Idli, bao, dhokla: pale, smooth, steamed. */
+  steamed(b) {
+    addVessel(b, "plate");
+
+    const count = 3;
+    const dome = b.geo(
+      new THREE.SphereGeometry(0.36, 26, 16, 0, Math.PI * 2, 0, Math.PI * 0.6),
+    );
+    dome.scale(1, 0.62, 1);
+    const mesh = new THREE.InstancedMesh(
+      dome,
+      b.mat({ color: 0xffffff, roughness: 0.88 }),
+      count,
+    );
+    const dummy = new THREE.Object3D();
+    const base = colour(0xf7f4ed);
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2 + 0.5;
+      dummy.position.set(Math.cos(angle) * 0.36, 0.02, Math.sin(angle) * 0.36);
+      dummy.rotation.set(0, b.rand() * Math.PI, 0);
+      dummy.scale.setScalar(0.9 + b.rand() * 0.18);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, vary(base, b.rand, 0.05));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    b.add(mesh);
+  },
+
+  /** Flatbread and pancakes: one browned disc, off a board. */
+  bread(b) {
+    addVessel(b, "board");
+
+    const loaf = b.geo(
+      new THREE.SphereGeometry(0.62, 30, 18, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    );
+    loaf.scale(1.3, 0.17, 0.88);
+    const mesh = new THREE.Mesh(
+      loaf,
+      b.mat({ color: colour(0xd9ab68), roughness: 0.88 }),
+    );
+    mesh.position.y = 0.05;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    b.add(mesh);
+
+    // The blisters a hot oven or a tawa leaves.
+    const spot = b.geo(new THREE.SphereGeometry(0.045, 8, 6));
+    spot.scale(1.5, 0.5, 1.1);
+    addScatter(b, {
+      geometry: spot,
+      count: 26,
+      radius: 0.68,
+      height: 0.11,
+      y: 0.08,
+      hex: 0x8f5a26,
+      variance: 0.22,
+      roughness: 0.9,
+    });
+  },
+
+  /** Parcels: gyoza, pierogi, momo, empanadas. */
+  dumpling(b) {
+    addVessel(b, "plate");
+
+    const count = 5;
+    const body = b.geo(new THREE.SphereGeometry(0.21, 18, 12));
+    body.scale(1, 0.74, 1.35);
+    const mesh = new THREE.InstancedMesh(
+      body,
+      b.mat({ color: 0xffffff, roughness: 0.78 }),
+      count,
+    );
+    const dummy = new THREE.Object3D();
+    const base = colour(0xefe4cc);
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2 + 0.3;
+      dummy.position.set(Math.cos(angle) * 0.42, 0.17, Math.sin(angle) * 0.42);
+      dummy.rotation.set(0, angle + Math.PI / 2 + (b.rand() - 0.5) * 0.4, 0);
+      dummy.scale.setScalar(0.92 + b.rand() * 0.16);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, vary(base, b.rand, 0.08));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.castShadow = true;
+    b.add(mesh);
+
+    // The pinched seam along the top of each.
+    const seam = b.geo(new THREE.TorusGeometry(0.14, 0.022, 6, 14, Math.PI));
+    const seams = new THREE.InstancedMesh(
+      seam,
+      b.mat({ color: 0xffffff, roughness: 0.8 }),
+      count,
+    );
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2 + 0.3;
+      dummy.position.set(Math.cos(angle) * 0.42, 0.29, Math.sin(angle) * 0.42);
+      dummy.rotation.set(0, angle + Math.PI / 2, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      seams.setMatrixAt(i, dummy.matrix);
+      seams.setColorAt(i, vary(colour(0xe4d7ba), b.rand, 0.06));
+    }
+    seams.instanceMatrix.needsUpdate = true;
+    if (seams.instanceColor) seams.instanceColor.needsUpdate = true;
+    b.add(seams);
+  },
+
+  /** Hummus, guacamole, raita: a smooth shallow bowl with a well in it. */
+  dip(b) {
+    addVessel(b, "bowl");
+
+    const radius = 0.8;
+    const y = bowlWallHeight(radius) - 0.02;
+    addMound(b, radius, 0.11, 0xe6d6ac, y);
+
+    // The well pressed into the middle, and the oil that sits in it.
+    const pool = new THREE.Mesh(
+      b.geo(new THREE.CircleGeometry(0.3, 32)),
+      b.mat({ color: colour(0x93992f), roughness: 0.18 }),
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.y = y + 0.108;
+    b.add(pool);
+
+    const dust = b.geo(new THREE.SphereGeometry(0.016, 5, 4));
+    addScatter(b, {
+      geometry: dust,
+      count: 90,
+      radius: radius * 0.9,
+      height: 0.11,
+      y: y + 0.004,
+      hex: 0xa8431c,
+      variance: 0.3,
+      roughness: 0.95,
+    });
+  },
+
+  /** Deep-fried: falafel, pakora, croquetas. Golden, uneven, in a pile. */
+  fried(b) {
+    addVessel(b, "plate");
+
+    const piece = b.geo(new THREE.SphereGeometry(0.2, 12, 9));
+    piece.scale(1, 0.9, 1);
+    addScatter(b, {
+      geometry: piece,
+      count: 6,
+      radius: 0.52,
+      height: 0.16,
+      y: 0.14,
+      hex: 0xb0722a,
+      variance: 0.2,
+      roughness: 0.86,
+    });
+
+    const crumb = b.geo(new THREE.SphereGeometry(0.03, 6, 4));
+    addScatter(b, {
+      geometry: crumb,
+      count: 40,
+      radius: 0.72,
+      height: 0.06,
+      y: 0.04,
+      hex: 0xc98f45,
+      variance: 0.3,
+      roughness: 0.9,
+    });
+  },
+
+  /** Rolled and handheld: burritos, shawarma, spring rolls. */
+  wrap(b) {
+    addVessel(b, "board");
+
+    const count = 2;
+    const roll = b.geo(new THREE.CylinderGeometry(0.21, 0.19, 1.1, 22, 1));
+    const mesh = new THREE.InstancedMesh(
+      roll,
+      b.mat({ color: 0xffffff, roughness: 0.82 }),
+      count,
+    );
+    const dummy = new THREE.Object3D();
+    const base = colour(0xe6cf9c);
+    for (let i = 0; i < count; i += 1) {
+      dummy.position.set((i - 0.5) * 0.5, 0.22, (b.rand() - 0.5) * 0.16);
+      dummy.rotation.set(Math.PI / 2, 0, 0.22 + (b.rand() - 0.5) * 0.26);
+      dummy.scale.setScalar(0.94 + b.rand() * 0.12);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, vary(base, b.rand, 0.1));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.castShadow = true;
+    b.add(mesh);
+
+    // The cut end, so it reads as full rather than as two pipes.
+    const filling = b.geo(new THREE.CircleGeometry(0.17, 20));
+    const ends = new THREE.InstancedMesh(
+      filling,
+      b.mat({ color: 0xffffff, roughness: 0.7, side: THREE.DoubleSide }),
+      count,
+    );
+    for (let i = 0; i < count; i += 1) {
+      dummy.position.set((i - 0.5) * 0.5 + 0.06, 0.22, 0.56);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      ends.setMatrixAt(i, dummy.matrix);
+      ends.setColorAt(i, vary(colour(0xa8562f), b.rand, 0.2));
+    }
+    ends.instanceMatrix.needsUpdate = true;
+    if (ends.instanceColor) ends.instanceColor.needsUpdate = true;
+    b.add(ends);
+  },
+
   generic(b) {
     addVessel(b, "plate");
     addMound(b, 0.6, 0.2, 0xc98f52, 0.03);
@@ -857,6 +1126,11 @@ export interface BuildDishOptions {
   name: string;
   /** What is in it. A fallback for names that carry no clue — see `pickArchetype`. */
   description?: string;
+  /**
+   * False when nothing is actually known about this dish. Nothing is drawn on
+   * the plate: see the `unknown` recipe for why.
+   */
+  recognised?: boolean;
   /** Overrides the archetype the name and description would have selected. */
   archetype?: DishArchetype;
 }
@@ -886,7 +1160,10 @@ function countTriangles(root: THREE.Object3D): number {
  */
 export function buildDish(options: BuildDishOptions): BuiltDish {
   const archetype =
-    options.archetype ?? pickArchetype(options.name, options.description);
+    options.archetype ??
+    (options.recognised === false
+      ? "unknown"
+      : pickArchetype(options.name, options.description));
   const seed = `${options.name} ${options.description ?? ""}`.trim();
   const builder = new Builder(makeRand(hashSeed(seed || archetype)));
 

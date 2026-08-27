@@ -10,7 +10,11 @@
  *   npx tsx scripts/verify-dish-shapes.ts
  */
 
-import { type DishArchetype, pickArchetype } from '../lib/ar/dish-geometry';
+import {
+  type DishArchetype,
+  buildDish,
+  pickArchetype,
+} from '../lib/ar/dish-geometry';
 
 let failures = 0;
 
@@ -37,13 +41,13 @@ shape(
   'hummus is a dip, not a drink',
   'حُمُّص Hummus',
   'Chickpeas blended with tahini, lemon juice, garlic and iced water.',
-  'generic',
+  'dip',
 );
 shape(
   'khachapuri is bread, not a drink',
   'ხაჭაპური Khachapuri',
   'Bread filled with cheese. You tear the crust off to dip it in the middle.',
-  'generic',
+  'bread',
 );
 shape(
   'chana masala is not a drink because it is darkened with tea',
@@ -94,6 +98,21 @@ shape(
 );
 shape('a name alone, with nothing else to go on', 'Zurek staropolski', '', 'generic');
 
+console.log('\nforms the fallback used to flatten into one brown mound');
+
+shape('idli is steamed, not a stew', 'Idli', 'Small steamed cakes of fermented rice and lentil batter.', 'steamed');
+shape('dhokla is steamed', 'ઢોકળા Dhokla', 'A spongy steamed square of fermented gram flour.', 'steamed');
+shape('naan is bread', 'Naan', 'Leavened flatbread slapped onto the wall of a tandoor.', 'bread');
+shape('a dosa is a pancake, so bread', 'मसाला दोसा Masala dosa', 'A thin rice crepe folded around spiced potato.', 'bread');
+shape('gyoza are dumplings', 'Gyoza', 'Pork and cabbage in a thin wrapper, fried on one side.', 'dumpling');
+shape('a soup dumpling is a dumpling first', 'Xiao long bao Soup dumplings', 'Pork and jellied stock in a pleated wheat skin.', 'dumpling');
+shape('falafel is fried', 'فلافل Falafel', 'Crushed chickpeas and herbs, deep-fried.', 'fried');
+shape('a samosa is fried', 'समोसा Samosa', 'Wheat pastry folded around spiced potato and deep-fried.', 'fried');
+shape('tacos are wrapped', 'Tacos al pastor', 'Pork shaved into small corn tortillas.', 'wrap');
+shape('shawarma is wrapped', 'شاورما Shawarma', 'Meat shaved off a spit into flatbread.', 'wrap');
+shape('guacamole is a dip', 'Guacamole', 'Avocado crushed with lime, onion and coriander.', 'dip');
+shape('dal is a soup', 'दाल Dal tadka', 'Lentils simmered soft and finished with fried spices.', 'soup');
+
 console.log('\nshort words do not match inside longer ones');
 
 for (const [label, inside] of [
@@ -103,6 +122,36 @@ for (const [label, inside] of [
 ] as const) {
   const got = pickArchetype('Mystery plate', inside);
   check(`${label} does not make it a drink`, got !== 'drink', `got ${got}`);
+}
+
+console.log('\nan unknown dish gets an empty plate, not somebody else\'s dinner');
+
+{
+  const known = buildDish({ name: 'Idli', description: 'Steamed rice cakes.' });
+  const stranger = buildDish({
+    name: 'Idli',
+    description: 'Steamed rice cakes.',
+    recognised: false,
+  });
+
+  check(
+    'a recognised dish is built from its own recipe',
+    known.archetype === 'steamed',
+    known.archetype,
+  );
+  check(
+    'an unrecognised one is not',
+    stranger.archetype === 'unknown',
+    stranger.archetype,
+  );
+  check(
+    'and nothing is drawn on the plate',
+    stranger.triangles < known.triangles,
+    `${stranger.triangles} triangles vs ${known.triangles}`,
+  );
+
+  known.dispose();
+  stranger.dispose();
 }
 
 console.log(

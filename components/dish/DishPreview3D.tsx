@@ -22,14 +22,19 @@ import { DishModel } from "@/components/ar/DishModel";
  */
 
 interface DishPreview3DProps {
-  /** Dish name plus its description; both feed the archetype choice. */
-  /** The dish's name. */
+  /** The dish's name. Picks the shape. */
   name: string;
   /** What is in it. Only consulted when the name says nothing. */
   description?: string;
+  /** False when the dish is not known: the plate comes out empty. */
+  recognised?: boolean;
 }
 
-export function DishPreview3D({ name, description }: DishPreview3DProps) {
+export function DishPreview3D({
+  name,
+  description,
+  recognised = true,
+}: DishPreview3DProps) {
   return (
     <figure className="m-0">
       <div className="relative aspect-[5/4] w-full overflow-hidden bg-sunk">
@@ -51,6 +56,7 @@ export function DishPreview3D({ name, description }: DishPreview3DProps) {
               url={null}
               name={name}
               description={description}
+              recognised={recognised}
               targetDiameter={0.25}
               portion={1}
             />
@@ -80,7 +86,9 @@ export function DishPreview3D({ name, description }: DishPreview3DProps) {
 
         {/* Sits on the image so it cannot come between the dish and its name. */}
         <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-4 pb-2.5 pt-8 text-[11.5px] leading-snug text-white/90">
-          Drag to turn it. Not a photo of the real plate.
+          {recognised
+            ? "Drag to turn it. Not a photo of the real plate."
+            : "Nothing is drawn here, because this dish is not known."}
         </figcaption>
       </div>
     </figure>
