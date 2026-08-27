@@ -31,6 +31,11 @@ to just work, or if you want to send the link to somebody else.
 dishes is not a ten-second job, and ten seconds is the default a serverless
 host will give you.
 
+Once it is online, open it on the phone and add it to the home screen — Share →
+Add to Home Screen on iOS, the install prompt or ⋮ → Add to Home screen on
+Android. It gets its own icon and launches without any browser chrome, which is
+what the camera view wants: no address bar sliding around over a live feed.
+
 ### The other way: same Wi-Fi as your computer
 
 ```bash
