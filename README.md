@@ -8,20 +8,52 @@ first time you open it, in a restaurant that has never heard of it.
 
 ```bash
 npm install
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env.local
 npm run dev            # http://localhost:3000
 ```
 
-To use it on a phone on the same Wi-Fi:
+## On your phone
+
+This is a thing you use standing up, in a restaurant, holding a menu. A laptop
+is not where it is tested.
+
+### The quick way: put it online
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FRishiEntrepeneur%2FTasteBuddy%2Ftree%2Fclaude%2Ftastebuddy-architecture-setup-8n9jgg&env=ANTHROPIC_API_KEY&envDescription=Your%20Anthropic%20API%20key.%20Reading%20menus%20is%20the%20only%20thing%20this%20app%20does%2C%20so%20nothing%20works%20without%20it.&envLink=https%3A%2F%2Fconsole.anthropic.com%2Fsettings%2Fkeys&project-name=tastebuddy&repository-name=tastebuddy)
+
+It copies the repository into your own account and asks for one thing:
+`ANTHROPIC_API_KEY`. No database, no other settings. You get an `https://` URL
+with a real certificate, which is what makes the camera work with no warning to
+click through — so this is the route to take if you want *see it on your plate*
+to just work, or if you want to send the link to somebody else.
+
+`maxDuration` is set to 60 seconds on both routes. Reading a full page of
+dishes is not a ten-second job, and ten seconds is the default a serverless
+host will give you.
+
+### The other way: same Wi-Fi as your computer
 
 ```bash
-npm run dev:lan        # binds 0.0.0.0 — reach it at http://<your-lan-ip>:3000
-npm run dev:lan:https  # same, over HTTPS — required for "see it on your plate"
+npm run dev:lan:https   # then open https://<your-computer>:3000 on the phone
 ```
 
-`getUserMedia` only runs in a secure context, and a bare LAN IP over plain
-HTTP is not one. Everything works under `dev:lan` except the camera view,
-which needs `dev:lan:https` and a self-signed certificate you accept once on
-the device.
+Find `<your-computer>` — your machine's address on the Wi-Fi, not `localhost`:
+
+| | |
+|---|---|
+| macOS | `ipconfig getifaddr en0` |
+| Windows | `ipconfig` — the IPv4 Address under your Wi-Fi adapter |
+| Linux | `hostname -I` |
+
+It looks like `192.168.1.24`. Both devices have to be on the same network, and
+some guest and campus networks block devices from seeing each other at all.
+
+Use `dev:lan:https`, not `dev:lan`. `getUserMedia` only runs in a secure
+context and a bare LAN IP over plain HTTP is not one, so over `dev:lan`
+everything works *except* the camera view. HTTPS here means a certificate the
+phone has never heard of: it will warn you once, and you tap through it. On an
+iPhone that warning is also the most common reason the camera still refuses
+afterwards — if it does, deploy it instead.
 
 ## What it does
 
@@ -97,7 +129,7 @@ which is fine for local work and is not a real limit.
 npm run typecheck
 npm run lint
 npm run build
-npm run verify:tracker    # 26 checks on the plate-finding vision pass
+npm run verify:tracker    # 62 checks on the plate-finding vision pass
 npm run verify:contrast   # every colour that carries text, measured
 ```
 

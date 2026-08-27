@@ -8,17 +8,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Generated .glb assets are content-addressed (see lib/pipeline/cdn.ts),
-        // so their URLs change whenever the bytes do.
-        source: "/assets/models/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },

@@ -21,6 +21,13 @@ import { validateImageUpload } from "@/lib/pipeline/validation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * A page of forty dishes takes the model well past the ten seconds a serverless
+ * host allows by default, and the diner is standing at a table holding a menu.
+ * Sixty is the ceiling on Vercel's free tier; raise it if yours allows more.
+ */
+export const maxDuration = 60;
+
 /** HEIC is not accepted upstream, and iPhones shoot it by default. */
 const READABLE: Readonly<Record<string, VisionMediaType>> = {
   jpeg: "image/jpeg",

@@ -15,6 +15,9 @@ import { recordLookup } from "@/lib/dish/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** One dish is quick, but not always ten-seconds quick. See /api/read-menu. */
+export const maxDuration = 60;
+
 export async function POST(request: Request): Promise<NextResponse> {
   let payload: { token?: unknown; name?: unknown; context?: unknown };
   try {
