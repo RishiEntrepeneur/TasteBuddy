@@ -574,3 +574,45 @@ DROP TRIGGER IF EXISTS restaurants_touch_updated_at ON restaurants;
 CREATE TRIGGER restaurants_touch_updated_at
   BEFORE UPDATE ON restaurants
   FOR EACH ROW EXECUTE FUNCTION touch_restaurant_updated_at();
+
+-- ============================================================================
+--  Migration 008 — the diner's own lookups
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+--  lookups
+--
+--  Reading a menu photo and explaining a dish both cost money, and both are
+--  open to anyone with the app: there is no sign-in, because a person standing
+--  in a restaurant holding a menu they cannot read is not going to make an
+--  account first.
+--
+--  So the limit hangs off the anonymous token the browser already mints for
+--  saved dishes. It is not an identity and proves nothing; it is a handle to
+--  count against, which is all a rate limit needs. Someone determined can mint
+--  a fresh one, and the daily total below is the backstop for that.
+--
+--  Nothing here records what was asked. The dish name is not stored, because
+--  what somebody is looking up in a restaurant is their business, and a table
+--  of "who searched for what" is a liability nobody asked this app to hold.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS lookups (
+  id            BIGSERIAL PRIMARY KEY,
+  -- The browser's anonymous token. Not a person.
+  diner_token   TEXT NOT NULL,
+  kind          TEXT NOT NULL CHECK (kind IN ('menu_photo', 'dish')),
+  input_tokens  INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT lookups_token_format CHECK (diner_token ~ '^[A-Za-z0-9_-]{22,64}$')
+);
+
+-- The per-token limit: "how many has this browser had in the last hour".
+CREATE INDEX IF NOT EXISTS lookups_token_idx
+  ON lookups (diner_token, created_at DESC);
+
+-- The backstop: "how many has the whole app had today", which is what stops a
+-- script minting a fresh token per request from running up a bill.
+CREATE INDEX IF NOT EXISTS lookups_recent_idx ON lookups (created_at DESC);
