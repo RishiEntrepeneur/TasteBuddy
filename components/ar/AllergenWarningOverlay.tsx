@@ -4,7 +4,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import type { MenuItemConflict } from "@/lib/types";
+import { ALLERGEN_CATALOG } from "@/lib/allergens";
+import type { LikelyAllergen } from "@/lib/dish/types";
 
 /**
  * The allergen warning, rendered *in the scene* directly over the dish.
@@ -30,8 +31,8 @@ interface AllergenWarningOverlayProps {
    * clips it off-screen for a large dish and leaves it tiny for a small one.
    */
   maxWidth: number;
-  /** Allergen conflicts to name. Nutrition conflicts are not shown in AR. */
-  conflicts: readonly MenuItemConflict[];
+  /** Only the allergens that clash with this diner's own profile. */
+  clashes: readonly LikelyAllergen[];
   /** Honours the diner's reduced-motion preference. */
   reducedMotion: boolean;
 }
@@ -96,7 +97,7 @@ function drawBanner(
 export function AllergenWarningOverlay({
   radius,
   maxWidth,
-  conflicts,
+  clashes,
   reducedMotion,
 }: AllergenWarningOverlayProps) {
   const shell = useRef<THREE.Mesh>(null);
@@ -104,23 +105,26 @@ export function AllergenWarningOverlay({
   const sprite = useRef<THREE.Sprite>(null);
   const { invalidate } = useThree();
 
-  const allergenConflicts = conflicts.filter(
-    (conflict) => conflict.type === "allergen",
-  );
-
+  /**
+   * The banner has no word for certainty, the same as every other screen.
+   * This app has never seen the kitchen, so the strongest thing it may say is
+   * how the dish is normally made.
+   */
   const { title, subtitle } = useMemo(() => {
-    const names = allergenConflicts.map((conflict) =>
-      String(conflict.key).replace(/_/g, " "),
+    const names = clashes.map((clash) =>
+      ALLERGEN_CATALOG[clash.key].label.toLowerCase(),
     );
     const unique = [...new Set(names)];
+    const anyUsually = clashes.some((clash) => clash.likelihood === "usually");
+    const lead = anyUsually ? "Usually has" : "Sometimes has";
     return {
       title:
         unique.length === 1
-          ? `Contains ${unique[0]}`
-          : `Contains ${unique.length} of your allergens`,
+          ? `${lead} ${unique[0]}`
+          : `${lead} ${unique.length} of yours`,
       subtitle: unique.join(" · ").toUpperCase(),
     };
-  }, [allergenConflicts]);
+  }, [clashes]);
 
   // The banner texture is rebuilt only when the wording changes.
   const texture = useMemo(() => {
@@ -172,7 +176,7 @@ export function AllergenWarningOverlay({
     }
   });
 
-  if (allergenConflicts.length === 0) return null;
+  if (clashes.length === 0) return null;
 
   // Track the dish, but never past the edge of the frame: a 24cm plate would
   // otherwise push the banner wider than the viewport and clip both ends.

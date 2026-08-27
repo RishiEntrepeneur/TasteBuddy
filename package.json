@@ -2,7 +2,7 @@
   "name": "tastebuddy",
   "version": "0.1.0",
   "private": true,
-  "description": "Web-native AR dining platform. Scan a QR code, see the dish on your plate.",
+  "description": "Point your phone at a menu you cannot read and it tells you what every dish is.",
   "scripts": {
     "dev": "next dev",
     "dev:lan": "next dev -H 0.0.0.0",
@@ -12,9 +12,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "verify:tracker": "tsx scripts/verify-plate-tracker.ts",
-    "verify:prices": "tsx scripts/verify-price-parser.ts",
-    "verify:contrast": "tsx scripts/verify-brand-contrast.ts",
-    "verify:qr": "tsx scripts/verify-table-card.ts"
+    "verify:contrast": "tsx scripts/verify-brand-contrast.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

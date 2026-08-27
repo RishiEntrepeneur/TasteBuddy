@@ -1,237 +1,230 @@
 @import "tailwindcss";
 
 /*
- * TasteBuddy design tokens.
+ * TasteBuddy.
  *
- * Minimalist by intent: one neutral ramp, one accent that each restaurant
- * overrides from its branding row, and a single danger colour reserved for
- * allergen warnings so the signal never competes with decoration.
+ * The app is a thing you hold in one hand in a dim restaurant, so it is built
+ * like one: a light ground, white cards that lift off it, big soft corners, and
+ * a thumb-sized shutter button that is never more than a reach away.
+ *
+ * Colour carries exactly one meaning. Green means this dish does not clash with
+ * what you avoid, red means it does, and nothing else in the app is allowed to
+ * be either. Every value that has text on it is measured in
+ * scripts/verify-brand-contrast.ts rather than eyeballed, because an alert
+ * nobody can read is worse than no alert.
  */
 
 @theme {
-  /* --- Stone-neutral brand palette ------------------------------------- */
-  /* Warm alabaster page, soft sandstone surfaces, charcoal obsidian type. */
-  --color-surface: #fdfbf7; /* alabaster */
-  --color-surface-raised: #f4f1ea; /* sandstone */
-  --color-surface-muted: #ede9e0; /* recessed sandstone */
-  --color-border: #e2ddd1; /* warm hairline */
-  --color-ink: #1c1917; /* obsidian */
-  --color-ink-muted: #78716c;
-  --color-accent: #e07a3f;
+  /* --- ground ---------------------------------------------------------- */
+  --color-bg: #f7f7f5;
+  --color-card: #ffffff;
+  --color-sunk: #f0f0ec;
+  --color-line: #e7e7e2;
+  --color-line-soft: #f0f0ec;
 
-  /*
-   * Sage olive — the selected state. Chosen at 5.36:1 on alabaster and
-   * 5.54:1 under white, so it reads as an accent in either direction
-   * rather than needing a second colour for text on the filled control.
-   */
-  --color-sage: #5f6d50;
-  --color-sage-soft: #ebefe4;
+  /* --- type ------------------------------------------------------------ */
+  --color-ink: #15181a;
+  --color-ink-2: #6c7275;
+  --color-ink-3: #9aa0a2;
 
-  /*
-   * Terracotta crimson — the single alert colour, warnings only, never
-   * decoration. 6.60:1 on alabaster, 6.82:1 under white.
-   */
-  --color-terracotta: #9c3b2e;
-  --color-terracotta-soft: #f9ede9;
+  /* --- meaning --------------------------------------------------------- */
+  /* No clash. 6.5:1 on the card. */
+  --color-safe: #2f6b45;
+  --color-safe-wash: #eaf3ed;
+  /* A clash, and nothing else, ever. 7.0:1 on the card. */
+  --color-alert: #a8321f;
+  --color-alert-wash: #fbecea;
+  /* Worth a look. 5.3:1 on the card. */
+  --color-caution: #8a5a12;
+  --color-caution-wash: #fbf2e3;
 
-  /*
-   * `danger` is the semantic alias, not a second colour. It resolves through
-   * the primitive above, so the dark override below only has to shift one
-   * value and every alert surface in the app follows.
-   */
-  --color-danger: var(--color-terracotta);
-  --color-danger-soft: var(--color-terracotta-soft);
-
-  /*
-   * Foreground for a *solid* danger fill. This has to flip with the theme:
-   * white on the lifted dark terracotta is only 2.79:1, which would fail on
-   * exactly the filled badges that carry an allergen warning.
-   *   light  white    on #9C3B2E  6.82:1
-   *   dark   obsidian on #D98570  6.28:1
-   */
-  --color-on-danger: #ffffff;
-
-  /*
-   * AR overlay alerts, deliberately fixed in both themes.
-   *
-   * The AR chrome composites over a live camera feed, not over the app's
-   * ground — there is no theme behind it to adapt to, and letting these shift
-   * would drop white-on-fill to 2.79:1 the moment a diner's phone was in dark
-   * mode. `ar-alert` is the banner fill under white text (6.82:1); `ar-alert-ink`
-   * is alert text on the black camera scrim (7.09:1 on black).
-   */
-  --color-ar-alert: #9c3b2e;
-  --color-ar-alert-ink: #d98570;
-
-  --color-safe: #15803d;
-
-  /*
-   * Sharp. A 16px radius on everything is the house style of software that
-   * has not decided what it is; a menu, a wine list and a bill are all set on
-   * square paper, and the app is a piece of the same printed matter.
-   */
-  --radius-card: 3px;
-  --radius-control: 3px;
+  /* --- shape ----------------------------------------------------------- */
+  --radius-card: 22px;
+  --radius-tile: 16px;
+  --radius-control: 12px;
 
   --font-sans: var(--font-sans-variable), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display-variable), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-display-variable), Georgia, serif;
 }
 
 /*
  * Dark ground.
  *
- * These are plain custom-property overrides on `:root`, NOT a second `@theme`
- * block. Tailwind v4 hoists every `@theme` declaration into one flat `:root`
- * rule regardless of any `@media` wrapping it, so nesting `@theme` inside a
- * media query silently makes the last-declared value win unconditionally —
- * which pins the whole app to one scheme. Overriding the same variables here
- * keeps the media query intact, and the utilities read `var(--color-*)` either
- * way.
+ * Plain custom-property overrides on `:root`, NOT a second `@theme` block:
+ * Tailwind v4 hoists every `@theme` declaration into one flat `:root` rule
+ * regardless of any `@media` around it, so nesting one inside a media query
+ * silently pins the whole app to one scheme.
  */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-surface: #0c0a09;
-    --color-surface-raised: #171412;
-    --color-surface-muted: #1c1917;
-    --color-border: #292524;
-    --color-ink: #fafaf9;
-    --color-ink-muted: #a8a29e;
-    /* The accents lift so they keep their contrast against a dark ground. */
-    --color-sage: #a3b18a;
-    --color-sage-soft: #1e241a;
-    /* Shifting the primitive carries `danger` and `danger-soft` with it. */
-    --color-terracotta: #d98570;
-    --color-terracotta-soft: #2a1712;
-    /* Solid fills flip their foreground rather than their fill. */
-    --color-on-danger: #1c1917;
-    /* --color-ar-alert / --color-ar-alert-ink are intentionally NOT lifted. */
+    --color-bg: #0e1011;
+    --color-card: #17191b;
+    --color-sunk: #1e2123;
+    --color-line: #272b2d;
+    --color-line-soft: #1e2123;
+
+    --color-ink: #e9ebea;
+    --color-ink-2: #9aa1a3;
+    --color-ink-3: #737a7c;
+
+    /* Lifted so they still clear AA on a dark card. */
+    --color-safe: #74c391;
+    --color-safe-wash: #16241b;
+    --color-alert: #f08a76;
+    --color-alert-wash: #2a1613;
+    --color-caution: #d9a75a;
+    --color-caution-wash: #241c0f;
   }
 }
 
-:root {
-  color-scheme: light dark;
-  /* Overridden per restaurant from its branding row. */
-  --brand-accent: var(--color-accent);
-  --brand-primary: var(--color-ink);
+/* -------------------------------------------------------------------------- */
+/*  Base                                                                       */
+/* -------------------------------------------------------------------------- */
+
+html {
+  /* Mobile Safari inflates text in some blocks otherwise, which turns a
+     readout into a headline. */
+  -webkit-text-size-adjust: 100%;
 }
 
-html,
 body {
-  background: var(--color-surface);
+  background: var(--color-bg);
   color: var(--color-ink);
-}
-
-body {
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  /* The AR view takes over the viewport; never let the page rubber-band. */
   overscroll-behavior-y: none;
 }
 
-/* Respect the notch and the home indicator on iOS. */
-.safe-bottom {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
-}
-
+/* Notch and home-indicator padding, on any device that has them. */
 .safe-top {
-  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-top: max(1rem, env(safe-area-inset-top));
 }
 
-/*
- * Portion slider.
- *
- * Styled by hand rather than with a headless library: it is the one control a
- * diner touches constantly, and a native `input[type=range]` keeps the
- * accessibility semantics and the 44px touch target for free.
- */
-.portion-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 2.75rem;
-  background: transparent;
-  cursor: pointer;
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
-.portion-slider::-webkit-slider-runnable-track {
-  height: 0.375rem;
-  border-radius: 999px;
-  background: var(--color-border);
+/* The lift that makes a card sit on the ground rather than in it. */
+.card {
+  background: var(--color-card);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 1px 2px rgb(15 20 25 / 0.04),
+    0 6px 18px -8px rgb(15 20 25 / 0.10);
 }
 
-.portion-slider::-moz-range-track {
-  height: 0.375rem;
-  border-radius: 999px;
-  background: var(--color-border);
+@media (prefers-color-scheme: dark) {
+  .card {
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.4),
+      0 6px 18px -8px rgb(0 0 0 / 0.5);
+  }
 }
 
-.portion-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 1.75rem;
-  height: 1.75rem;
-  margin-top: -0.6875rem;
-  border-radius: 999px;
-  background: var(--brand-accent);
-  border: 3px solid var(--color-surface);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+/* The shutter. Deliberately the heaviest thing on the screen. */
+.shutter {
+  box-shadow:
+    0 2px 6px rgb(15 20 25 / 0.18),
+    0 10px 24px -8px rgb(15 20 25 / 0.28);
 }
 
-.portion-slider::-moz-range-thumb {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 999px;
-  background: var(--brand-accent);
-  border: 3px solid var(--color-surface);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+/* A sheet rising from the bottom, the way a phone does it. */
+@keyframes rise {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-.portion-slider:focus-visible::-webkit-slider-thumb {
+.rise {
+  animation: rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Focus that is visible without being a permanent outline. */
+:focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
+  border-radius: 6px;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  The AR view                                                                */
+/* -------------------------------------------------------------------------- */
+
 /*
- * Attention pulses.
+ * Chrome over a live camera feed, which has no theme to adapt to.
  *
- * `tb-pulse` fades a whole element and is only for decorative chrome such as
- * the tracking reticle.
+ * These two are deliberately fixed in both schemes. Everything else in the app
+ * shifts with the viewer's setting, but here the ground is whatever the room
+ * looks like, and letting the alert lift in dark mode would drop white-on-fill
+ * to 2.8:1 on exactly the banner that carries an allergen warning.
  *
- * The allergen banner uses `tb-alert-pulse` instead, which animates the ring
- * around the banner and leaves the fill fully opaque. Fading a safety warning
- * in and out costs contrast at the trough exactly when the diner is trying to
- * read which allergen it names.
+ *   ar-alert      the banner fill under white text     6.8:1
+ *   ar-alert-ink  alert text on the black camera scrim 7.1:1 on black
  */
+:root {
+  --color-ar-alert: #9c3b2e;
+  --color-ar-alert-ink: #d98570;
+}
+
+/* The reticle that hunts for a plate. */
+.reticle {
+  position: absolute;
+  border: 2px dashed rgb(255 255 255 / 0.9);
+  border-radius: 4px;
+  pointer-events: none;
+  transition:
+    left 90ms linear,
+    top 90ms linear,
+    width 90ms linear,
+    height 90ms linear,
+    opacity 160ms linear;
+}
+
 @keyframes tb-pulse {
   0%,
   100% {
-    opacity: 1;
+    opacity: 0.55;
   }
   50% {
-    opacity: 0.55;
+    opacity: 1;
   }
 }
 
 .tb-pulse {
-  animation: tb-pulse 1.6s ease-in-out infinite;
+  animation: tb-pulse 1.8s ease-in-out infinite;
 }
 
+/*
+ * The allergen banner breathes so it is noticed in peripheral vision while
+ * somebody is looking at their plate rather than at the screen.
+ */
 @keyframes tb-alert-pulse {
   0%,
   100% {
-    box-shadow:
-      0 0 0 0 rgb(220 38 38 / 0.65),
-      0 4px 12px rgb(0 0 0 / 0.35);
+    box-shadow: 0 0 0 0 rgb(156 59 46 / 0.55);
   }
   50% {
-    box-shadow:
-      0 0 0 10px rgb(220 38 38 / 0),
-      0 4px 12px rgb(0 0 0 / 0.35);
+    box-shadow: 0 0 0 10px rgb(156 59 46 / 0);
   }
 }
 
 .tb-alert-pulse {
-  animation: tb-alert-pulse 1.8s ease-out infinite;
+  animation: tb-alert-pulse 2s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

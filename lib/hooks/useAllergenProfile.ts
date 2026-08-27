@@ -3,78 +3,53 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 import { isAllergenKey } from "@/lib/allergens";
-import {
-  EMPTY_ALLERGEN_PROFILE,
-  NUTRITION_KEYS,
-  type AllergenKey,
-  type AllergenProfile,
-  type NutritionKey,
-  type NutritionThresholds,
-} from "@/lib/types";
+import type { AllergenKey, AllergenProfile } from "@/lib/types";
 
 /**
- * The diner's allergen profile, backed by `localStorage`.
+ * What the diner avoids, kept in their own browser.
  *
- * Health data, so it is deliberately never persisted server-side: TasteBuddy
- * has no accounts to attach it to. It travels as a query string to `/api/menu`
- * for the duration of one request and nothing more.
+ * This is health data and it never leaves the device. There is no account to
+ * attach it to, no request that carries it, and no row anywhere that holds it.
+ * Dishes are flagged on the phone, by comparing what the app was told about a
+ * dish against this list.
  *
- * Implemented as a small external store read through `useSyncExternalStore`
- * rather than as `useState` + a hydration effect. That gets three things:
- * a correct server snapshot (the empty profile) with no hydration mismatch,
- * no cascading render on mount, and cross-tab sync for free via the `storage`
- * event.
+ * Built as a small external store read through `useSyncExternalStore` rather
+ * than `useState` plus a hydration effect. That buys three things: a correct
+ * server snapshot with no hydration mismatch, no cascading render on mount,
+ * and cross-tab sync for free through the `storage` event.
  */
 
 /**
- * Avoided allergens persist as a bare `string[]` — `["peanuts","dairy"]` — so
- * the stored value is inspectable and portable on its own. `strict` is a
- * separate scalar rather than a field on a wrapper object, which keeps that
- * array the single, unambiguous record of what the diner selected.
+ * Persisted as a bare `string[]` — `["peanuts","dairy"]` — so the stored value
+ * is inspectable and portable on its own, and so somebody clearing it by hand
+ * can see exactly what they are clearing.
  */
-const ALLERGENS_STORAGE_KEY = "tastebuddy.allergens.v1";
-const STRICT_STORAGE_KEY = "tastebuddy.allergen-strict.v1";
-const THRESHOLD_STORAGE_KEY = "tastebuddy.nutrition-thresholds.v1";
+const STORAGE_KEY = "tastebuddy.allergens.v1";
 
-/** Pre-split shape, read once so an existing diner keeps their selections. */
-const LEGACY_PROFILE_STORAGE_KEY = "tastebuddy.allergen-profile.v1";
+/** Earlier shapes, read once so nobody loses selections they already made. */
+const LEGACY_KEYS = [
+  "tastebuddy.allergen-profile.v1",
+  "tastebuddy.allergen-strict.v1",
+] as const;
 
-const EMPTY_THRESHOLDS: NutritionThresholds = Object.freeze({});
+const EMPTY: AllergenProfile = Object.freeze({ avoid: [] });
 
 /* -------------------------------------------------------------------------- */
 /*  Parsing                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Parses the persisted `string[]`, dropping anything not a known allergen. */
-function parseAllergenArray(raw: string | null): AllergenKey[] {
+/** Parses the persisted array, dropping anything that is not a known allergen. */
+function parse(raw: string | null): AllergenKey[] {
   if (!raw) return [];
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
-      (key): key is AllergenKey =>
-        typeof key === "string" && isAllergenKey(key),
+      (key): key is AllergenKey => typeof key === "string" && isAllergenKey(key),
     );
   } catch {
-    // Corrupt storage must never block the menu.
+    // Corrupt storage must never block the app.
     return [];
-  }
-}
-
-function parseThresholds(raw: string | null): NutritionThresholds {
-  if (!raw) return EMPTY_THRESHOLDS;
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const thresholds: NutritionThresholds = {};
-    for (const key of NUTRITION_KEYS) {
-      const value = parsed[key];
-      if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-        thresholds[key] = value;
-      }
-    }
-    return thresholds;
-  } catch {
-    return EMPTY_THRESHOLDS;
   }
 }
 
@@ -87,33 +62,28 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 
 /**
- * Snapshot caches.
- *
- * `useSyncExternalStore` compares snapshots by identity, so parsing on every
- * read would loop forever. Each snapshot is therefore re-parsed only when the
- * underlying raw string actually changes.
+ * `useSyncExternalStore` compares snapshots by identity, so re-parsing on
+ * every read would loop forever. The snapshot is re-parsed only when the
+ * underlying string actually changes.
  */
-let allergensRaw: string | null = null;
-let strictRaw: string | null = null;
-let profileSnapshot: AllergenProfile = EMPTY_ALLERGEN_PROFILE;
-let thresholdRaw: string | null = null;
-let thresholdSnapshot: NutritionThresholds = EMPTY_THRESHOLDS;
-let migrationChecked = false;
+let lastRaw: string | null = null;
+let snapshot: AllergenProfile = EMPTY;
+let migrated = false;
 
-function readRaw(key: string): string | null {
+function readRaw(): string | null {
   try {
-    return window.localStorage.getItem(key);
+    return window.localStorage.getItem(STORAGE_KEY);
   } catch {
-    // Private mode or blocked storage — behave as if nothing was saved.
+    // Private mode or blocked storage: behave as if nothing was saved.
     return null;
   }
 }
 
-function writeRaw(key: string, value: string): void {
+function writeRaw(value: string): void {
   try {
-    window.localStorage.setItem(key, value);
+    window.localStorage.setItem(STORAGE_KEY, value);
   } catch {
-    // Quota or private mode: the session still works, it is just not remembered.
+    // Quota or private mode. The session still works, it is just not kept.
   }
 }
 
@@ -121,97 +91,61 @@ function emit(): void {
   for (const listener of listeners) listener();
 }
 
-function subscribe(listener: Listener): () => void {
-  listeners.add(listener);
-  // `storage` fires in *other* tabs, which gives cross-tab sync at no cost.
-  window.addEventListener("storage", listener);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", listener);
-  };
-}
-
-/**
- * Lifts a pre-split profile object into the current keys, once per session.
- * Runs on read rather than as a startup effect so it costs nothing on a fresh
- * install and cannot race the first render.
- */
-function migrateLegacyProfile(): void {
-  if (migrationChecked) return;
-  migrationChecked = true;
-
-  if (readRaw(ALLERGENS_STORAGE_KEY) !== null) return;
-
-  const legacy = readRaw(LEGACY_PROFILE_STORAGE_KEY);
-  if (!legacy) return;
+/** Pulls a pre-split profile across, once, then leaves the old keys alone. */
+function migrateOnce(): void {
+  if (migrated) return;
+  migrated = true;
+  if (readRaw() !== null) return;
 
   try {
-    const parsed = JSON.parse(legacy) as { avoid?: unknown; strict?: unknown };
-    const avoid = Array.isArray(parsed.avoid)
+    const legacy = window.localStorage.getItem(LEGACY_KEYS[0]);
+    if (!legacy) return;
+    const parsed = JSON.parse(legacy) as { avoid?: unknown };
+    const avoid = Array.isArray(parsed?.avoid)
       ? parsed.avoid.filter(
           (key): key is AllergenKey =>
             typeof key === "string" && isAllergenKey(key),
         )
       : [];
-    writeRaw(ALLERGENS_STORAGE_KEY, JSON.stringify(avoid));
-    writeRaw(STRICT_STORAGE_KEY, parsed.strict === false ? "false" : "true");
+    if (avoid.length) writeRaw(JSON.stringify(avoid));
   } catch {
-    // An unreadable legacy value is simply dropped; the diner re-selects.
+    // A profile that will not migrate is one the diner can set again.
   }
 }
 
-function getProfileSnapshot(): AllergenProfile {
-  migrateLegacyProfile();
-
-  const nextAllergens = readRaw(ALLERGENS_STORAGE_KEY);
-  const nextStrict = readRaw(STRICT_STORAGE_KEY);
-
-  // Re-parse only when a raw value actually changed: `useSyncExternalStore`
-  // compares snapshots by identity, so parsing on every read would loop.
-  if (nextAllergens !== allergensRaw || nextStrict !== strictRaw) {
-    allergensRaw = nextAllergens;
-    strictRaw = nextStrict;
-    profileSnapshot = {
-      avoid: parseAllergenArray(nextAllergens),
-      // Strict is the safe default; only an explicit "false" relaxes it.
-      strict: nextStrict !== "false",
-    };
+function subscribe(listener: Listener): () => void {
+  listeners.add(listener);
+  if (listeners.size === 1) {
+    window.addEventListener("storage", onStorage);
   }
-
-  return profileSnapshot;
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      window.removeEventListener("storage", onStorage);
+    }
+  };
 }
 
-function getThresholdSnapshot(): NutritionThresholds {
-  const raw = readRaw(THRESHOLD_STORAGE_KEY);
-  if (raw !== thresholdRaw) {
-    thresholdRaw = raw;
-    thresholdSnapshot = parseThresholds(raw);
+function onStorage(event: StorageEvent): void {
+  if (event.key === null || event.key === STORAGE_KEY) emit();
+}
+
+function getSnapshot(): AllergenProfile {
+  migrateOnce();
+  const raw = readRaw();
+  if (raw !== lastRaw) {
+    lastRaw = raw;
+    snapshot = { avoid: parse(raw) };
   }
-  return thresholdSnapshot;
+  return snapshot;
 }
 
-/** The server has no storage, so it always renders the empty profile. */
-function getServerProfileSnapshot(): AllergenProfile {
-  return EMPTY_ALLERGEN_PROFILE;
+function getServerSnapshot(): AllergenProfile {
+  return EMPTY;
 }
 
-function getServerThresholdSnapshot(): NutritionThresholds {
-  return EMPTY_THRESHOLDS;
-}
-
-/** Persists the avoided set as a plain array of allergen keys. */
-function setAvoided(avoid: readonly AllergenKey[]): void {
-  writeRaw(ALLERGENS_STORAGE_KEY, JSON.stringify([...avoid]));
-  emit();
-}
-
-function setStrictFlag(strict: boolean): void {
-  writeRaw(STRICT_STORAGE_KEY, strict ? "true" : "false");
-  emit();
-}
-
-function setThresholds(next: NutritionThresholds): void {
-  writeRaw(THRESHOLD_STORAGE_KEY, JSON.stringify(next));
+function save(avoid: readonly AllergenKey[]): void {
+  writeRaw(JSON.stringify(avoid));
   emit();
 }
 
@@ -221,82 +155,47 @@ function setThresholds(next: NutritionThresholds): void {
 
 export interface UseAllergenProfileResult {
   profile: AllergenProfile;
-  thresholds: NutritionThresholds;
-  toggleAllergen: (key: AllergenKey) => void;
+  toggle: (key: AllergenKey) => void;
   /**
-   * Sets several allergens at once. A single UI control can stand for more than
-   * one key — "Peanuts / Tree nuts" is one switch over two allergens — and
-   * toggling them one at a time would leave the group half-on whenever the two
-   * started out disagreeing.
+   * Sets several at once. One control can stand for more than one key —
+   * "Peanuts / tree nuts" is a single switch over two — and toggling them
+   * separately leaves the group half-on whenever the two started out
+   * disagreeing.
    */
-  setAllergens: (keys: readonly AllergenKey[], avoided: boolean) => void;
-  setStrict: (strict: boolean) => void;
-  setThreshold: (key: NutritionKey, value: number | null) => void;
-  clearProfile: () => void;
+  setMany: (keys: readonly AllergenKey[], avoided: boolean) => void;
+  clear: () => void;
 }
 
 export function useAllergenProfile(): UseAllergenProfileResult {
   const profile = useSyncExternalStore(
     subscribe,
-    getProfileSnapshot,
-    getServerProfileSnapshot,
+    getSnapshot,
+    getServerSnapshot,
   );
 
-  const thresholds = useSyncExternalStore(
-    subscribe,
-    getThresholdSnapshot,
-    getServerThresholdSnapshot,
-  );
-
-  const setAllergens = useCallback(
-    (keys: readonly AllergenKey[], avoided: boolean) => {
-      const current = new Set(getProfileSnapshot().avoid);
-      for (const key of keys) {
-        if (avoided) current.add(key);
-        else current.delete(key);
-      }
-      setAvoided([...current]);
-    },
-    [],
-  );
-
-  const toggleAllergen = useCallback(
+  const toggle = useCallback(
     (key: AllergenKey) => {
-      setAllergens([key], !getProfileSnapshot().avoid.includes(key));
+      const avoid = profile.avoid.includes(key)
+        ? profile.avoid.filter((entry) => entry !== key)
+        : [...profile.avoid, key];
+      save(avoid);
     },
-    [setAllergens],
+    [profile],
   );
 
-  const setStrict = useCallback((strict: boolean) => {
-    setStrictFlag(strict);
-  }, []);
-
-  const setThreshold = useCallback(
-    (key: NutritionKey, value: number | null) => {
-      const next = { ...getThresholdSnapshot() };
-      if (value === null || !Number.isFinite(value) || value < 0) {
-        delete next[key];
-      } else {
-        next[key] = value;
+  const setMany = useCallback(
+    (keys: readonly AllergenKey[], avoided: boolean) => {
+      const next = new Set(profile.avoid);
+      for (const key of keys) {
+        if (avoided) next.add(key);
+        else next.delete(key);
       }
-      setThresholds(next);
+      save([...next]);
     },
-    [],
+    [profile],
   );
 
-  const clearProfile = useCallback(() => {
-    setAvoided([]);
-    setStrictFlag(true);
-    setThresholds(EMPTY_THRESHOLDS);
-  }, []);
+  const clear = useCallback(() => save([]), []);
 
-  return {
-    profile,
-    thresholds,
-    toggleAllergen,
-    setAllergens,
-    setStrict,
-    setThreshold,
-    clearProfile,
-  };
+  return { profile, toggle, setMany, clear };
 }

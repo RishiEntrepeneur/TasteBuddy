@@ -8,13 +8,17 @@ import * as THREE from "three";
 import { DishModel } from "@/components/ar/DishModel";
 
 /**
- * The dish, on a plate, turnable.
+ * The card's photograph, except that it is not one.
  *
- * Built from the dish's own name: `lib/ar/dish-geometry` picks an archetype
- * from the words and seeds it from a hash of them, so the same dish looks the
- * same every time without anything having been uploaded. Nothing in this app
- * has a photograph of the actual food, and the caption says so: this shows the
- * *kind* of thing that arrives, which is the question being asked.
+ * Nothing in this app has a picture of the real plate. The geometry is built
+ * from the dish's own name every time: `lib/ar/dish-geometry` picks an
+ * archetype from the words and seeds it from a hash of them, so the same dish
+ * looks the same on every phone without anything ever being uploaded.
+ *
+ * The line underneath is not a disclaimer bolted on. It is the difference
+ * between showing somebody the kind of thing that arrives, which is useful,
+ * and letting them believe they are looking at what the kitchen will actually
+ * plate, which is not.
  */
 
 interface DishPreview3DProps {
@@ -25,44 +29,51 @@ interface DishPreview3DProps {
 export function DishPreview3D({ text }: DishPreview3DProps) {
   return (
     <figure className="m-0">
-      <div className="relative aspect-4/3 w-full overflow-hidden rounded-card border border-border bg-surface-raised">
+      <div className="relative aspect-[5/4] w-full overflow-hidden bg-sunk">
         <Canvas
           dpr={[1, 1.75]}
-          camera={{ position: [0, 0.26, 0.42], fov: 40 }}
+          camera={{ position: [0, 0.19, 0.34], fov: 38 }}
           gl={{ antialias: true, alpha: true }}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.05;
+            gl.toneMappingExposure = 1.08;
           }}
         >
-          <ambientLight intensity={0.75} />
-          <directionalLight position={[0.4, 0.8, 0.5]} intensity={1.6} />
-          <directionalLight position={[-0.5, 0.4, -0.3]} intensity={0.4} />
+          <ambientLight intensity={0.8} />
+          <directionalLight position={[0.4, 0.9, 0.5]} intensity={1.7} />
+          <directionalLight position={[-0.5, 0.4, -0.3]} intensity={0.35} />
 
           <Suspense fallback={null}>
-            <DishModel url={null} text={text} targetDiameter={0.24} portion={1} />
+            <DishModel url={null} text={text} targetDiameter={0.25} portion={1} />
           </Suspense>
 
-          {/* The plate reads as a plate mostly because of what it sits on. */}
+          {/*
+            A table, not a disc. Sized past the frame on purpose: a ground
+            plane whose edge is visible reads as an object floating in a void,
+            which is the opposite of what this is for.
+          */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]}>
-            <circleGeometry args={[0.3, 48]} />
-            <meshStandardMaterial color="#efe9dd" roughness={0.95} />
+            <circleGeometry args={[2, 64]} />
+            <meshStandardMaterial color="#eceae5" roughness={0.95} />
           </mesh>
 
           <OrbitControls
             enablePan={false}
             enableZoom={false}
-            minPolarAngle={0.3}
-            maxPolarAngle={1.35}
+            // Looking at the food rather than at the tablecloth under it.
+            target={[0, 0.045, 0]}
+            minPolarAngle={0.35}
+            maxPolarAngle={1.25}
             autoRotate
-            autoRotateSpeed={0.7}
+            autoRotateSpeed={0.65}
           />
         </Canvas>
+
+        {/* Sits on the image so it cannot come between the dish and its name. */}
+        <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-4 pb-2.5 pt-8 text-[11.5px] leading-snug text-white/90">
+          Drag to turn it. Not a photo of the real plate.
+        </figcaption>
       </div>
-      <figcaption className="mt-1.5 text-xs leading-relaxed text-ink-muted">
-        Drag to turn it. This is the kind of thing that arrives, not a photo of
-        the real plate.
-      </figcaption>
     </figure>
   );
 }

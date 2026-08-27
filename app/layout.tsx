@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     template: "%s · TasteBuddy",
   },
   description:
-    "Scan the QR code on your table to see every dish in AR, sized to your portion and checked against your allergies.",
+    "Photograph a menu you cannot read and it tells you what every dish is, and flags anything that clashes with your allergies.",
   applicationName: "TasteBuddy",
   appleWebApp: {
     capable: true,
@@ -51,8 +51,8 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c0a09" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f7f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1011" },
   ],
 };
 
@@ -61,7 +61,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable}`}>
-      <body className="min-h-dvh bg-surface text-ink antialiased">
+      <body className="min-h-dvh bg-bg text-ink antialiased">
         {children}
       </body>
     </html>

@@ -23,6 +23,7 @@ import {
 import * as THREE from "three";
 
 import { AllergenWarningOverlay } from "@/components/ar/AllergenWarningOverlay";
+import { ALLERGEN_CATALOG } from "@/lib/allergens";
 import { DishModel } from "@/components/ar/DishModel";
 import {
   PlateTracker,
@@ -33,14 +34,39 @@ import {
   type PlateObservation,
   type TrackingState,
 } from "@/lib/ar/plate-tracker";
-import { useAssetAvailability } from "@/lib/hooks/useAssetAvailability";
+import type { DishExplanation, LikelyAllergen } from "@/lib/dish/types";
 import { useCameraStream } from "@/lib/hooks/useCameraStream";
-import {
-  readDeviceCapabilities,
-  resolveAssetUrl,
-  selectLodTier,
-} from "@/lib/pipeline/lod";
-import type { EvaluatedMenuItem, LodTier } from "@/lib/types";
+
+/**
+ * What the viewer needs to know about a dish.
+ *
+ * Note what is missing: a model file. Nothing in this app has a photograph of
+ * the real plate, so the geometry is built from the dish's own name every
+ * time. That is honest about what this is — the shape and size of the thing
+ * that arrives, not a picture of it.
+ */
+export interface ARDish {
+  name: string;
+  /** Fed to the geometry builder along with the name. */
+  description: string;
+  /** Longest real-world edge of the plated dish, in metres. */
+  realWorldScaleM: number;
+  /** Only the ones that clash with this diner's profile. */
+  clashes: LikelyAllergen[];
+}
+
+/** Builds the viewer's input from an explained dish and what the diner avoids. */
+export function arDishFrom(
+  dish: DishExplanation,
+  clashes: LikelyAllergen[],
+): ARDish {
+  return {
+    name: dish.printedName,
+    description: `${dish.englishName} ${dish.whatItIs}`,
+    realWorldScaleM: 0.22,
+    clashes,
+  };
+}
 
 /**
  * TasteBuddyARViewer — the AR canvas.
@@ -80,8 +106,7 @@ const CAMERA_FOV_DEGREES = 55;
 const PREVIEW_TILT = 0.36;
 
 interface TasteBuddyARViewerProps {
-  item: EvaluatedMenuItem;
-  portion: number;
+  item: ARDish;
   onClose: () => void;
 }
 
@@ -90,11 +115,9 @@ interface TasteBuddyARViewerProps {
 /* -------------------------------------------------------------------------- */
 
 interface SceneProps {
-  item: EvaluatedMenuItem;
-  portion: number;
+  item: ARDish;
   anchor: PlateObservation | null;
   trackingState: TrackingState;
-  assetUrl: string | null;
   reducedMotion: boolean;
 }
 
@@ -106,10 +129,8 @@ interface SceneProps {
  */
 function AnchoredDish({
   item,
-  portion,
   anchor,
   trackingState,
-  assetUrl,
   reducedMotion,
 }: SceneProps) {
   const group = useRef<THREE.Group>(null);
@@ -127,7 +148,7 @@ function AnchoredDish({
       // push it off the bottom of the frame.
       return {
         position: [0, -0.16, -FALLBACK_DISTANCE_M],
-        radius: (item.asset?.realWorldScaleM ?? 0.22) / 2,
+        radius: item.realWorldScaleM / 2,
       };
     }
 
@@ -136,7 +157,7 @@ function AnchoredDish({
       aspect,
       distance: FALLBACK_DISTANCE_M,
     });
-  }, [anchor, size.width, size.height, item.asset?.realWorldScaleM]);
+  }, [anchor, size.width, size.height, item.realWorldScaleM]);
 
   const target = useMemo(
     () => new THREE.Vector3(...pose.position),
@@ -156,9 +177,9 @@ function AnchoredDish({
   const targetDiameter =
     trackingState === "locked"
       ? pose.radius * 2 * 0.78
-      : (item.asset?.realWorldScaleM ?? 0.22);
+      : item.realWorldScaleM;
 
-  const dishRadius = (targetDiameter / 2) * Math.cbrt(portion);
+  const dishRadius = targetDiameter / 2;
 
   // Visible frustum width where the dish sits, so the warning banner can be
   // clamped to the frame rather than to the dish.
@@ -175,10 +196,10 @@ function AnchoredDish({
     <group ref={group} position={pose.position} rotation={[tilt, 0, 0]}>
       <Suspense fallback={null}>
         <DishModel
-          url={assetUrl}
+          url={null}
           text={`${item.name} ${item.description}`}
           targetDiameter={targetDiameter}
-          portion={portion}
+          portion={1}
         />
       </Suspense>
 
@@ -189,11 +210,11 @@ function AnchoredDish({
         <meshBasicMaterial color="#000000" transparent opacity={0.22} />
       </mesh>
 
-      {item.hasAllergenConflict ? (
+      {item.clashes.length > 0 ? (
         <AllergenWarningOverlay
           radius={dishRadius}
           maxWidth={visibleWidth * 0.88}
-          conflicts={item.conflicts}
+          clashes={item.clashes}
           reducedMotion={reducedMotion}
         />
       ) : null}
@@ -246,7 +267,6 @@ function getServerReducedMotion(): boolean {
 
 export function TasteBuddyARViewer({
   item,
-  portion,
   onClose,
 }: TasteBuddyARViewerProps) {
   const camera = useCameraStream();
@@ -267,19 +287,11 @@ export function TasteBuddyARViewer({
 
   // Device capability is fixed for the life of the session, so it is read once
   // during the initial render rather than patched in from an effect.
-  const [lodTier] = useState<LodTier>(() =>
-    selectLodTier(readDeviceCapabilities()),
-  );
 
-  const candidateUrl = useMemo(() => {
-    if (!item.asset || item.asset.status !== "ready") return null;
-    return resolveAssetUrl(item.asset.lodUrls, lodTier, item.asset.glbUrl);
-  }, [item.asset, lodTier]);
+
 
   // The procedural dish renders straight away; the generated mesh replaces it
   // only once the CDN object is confirmed to exist.
-  const availability = useAssetAvailability(candidateUrl);
-  const assetUrl = availability === "available" ? candidateUrl : null;
 
   /* ---- Camera ------------------------------------------------------------- */
 
@@ -437,10 +449,8 @@ export function TasteBuddyARViewer({
             <SceneLighting />
             <AnchoredDish
               item={item}
-              portion={portion}
               anchor={anchor}
               trackingState={trackingState}
-              assetUrl={assetUrl}
               reducedMotion={reducedMotion}
             />
           </Canvas>
@@ -465,7 +475,7 @@ export function TasteBuddyARViewer({
 /* -------------------------------------------------------------------------- */
 
 interface ARChromeProps {
-  item: EvaluatedMenuItem;
+  item: ARDish;
   cameraStatus: ReturnType<typeof useCameraStream>["status"];
   cameraError: string | null;
   trackingState: TrackingState;
@@ -490,9 +500,7 @@ function ARChrome({
   onRetrack,
   onClose,
 }: ARChromeProps) {
-  const allergenConflicts = item.conflicts.filter(
-    (conflict) => conflict.type === "allergen",
-  );
+
 
   return (
     <>
@@ -525,7 +533,7 @@ function ARChrome({
       {/* Allergen banner. The authoritative warning is the 3D overlay on the
           model; this repeats it for screen readers and for a diner glancing at
           the edge of the screen. */}
-      {item.hasAllergenConflict ? (
+      {item.clashes.length > 0 ? (
         <div
           role="alert"
           className="safe-top pointer-events-none absolute inset-x-0 top-16 z-20 mx-4 rounded-control border-2 border-white/85 bg-[var(--color-ar-alert)] px-4 py-3 text-white shadow-lg tb-alert-pulse"
@@ -535,8 +543,12 @@ function ARChrome({
             Allergen warning
           </p>
           <ul className="mt-1 space-y-0.5 text-sm">
-            {allergenConflicts.map((conflict) => (
-              <li key={String(conflict.key)}>{conflict.message}</li>
+            {item.clashes.map((clash) => (
+              <li key={clash.key}>
+                {clash.likelihood === "usually" ? "Usually" : "Sometimes"} has{" "}
+                {ALLERGEN_CATALOG[clash.key].label.toLowerCase()}
+                {clash.from ? `, from ${clash.from}` : ""}
+              </li>
             ))}
           </ul>
         </div>

@@ -3,17 +3,12 @@ import type { AllergenKey, MenuCategory } from "@/lib/types";
 /**
  * What the app can tell a diner about a dish.
  *
- * ── Why this is allowed to guess, when the restaurant side is not ──────────
+ * ── Why this is allowed to guess ───────────────────────────────────────────
  *
- * `lib/vision/menu-reader.ts` refuses to say anything about allergens, and
- * that is still right: it feeds a restaurant's published menu, where a guess
- * would arrive at a diner wearing the venue's authority.
- *
- * This module answers a different question. A diner standing in front of a
- * menu they cannot read is asking "what is này?", and the honest, useful
- * answer to "what is pad thai" includes "it is normally made with peanuts".
- * Refusing to say that would not make anyone safer; it would send someone with
- * a peanut allergy to order it blind.
+ * Somebody standing in front of a menu they cannot read is asking what is in
+ * the food, and the honest, useful answer to "what is pad thai" includes "it
+ * is normally made with peanuts". Refusing to say that would not make anyone
+ * safer; it would send someone with a peanut allergy to order it blind.
  *
  * So the guess is allowed, and the whole shape of it is built to stay a guess:
  *

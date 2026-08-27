@@ -1,29 +1,24 @@
 /**
- * Reading text on a venue's own colours.
+ * Measuring whether text can be read on a colour.
  *
- * Branding is data: each restaurant sets a primary and an accent, and neither
- * this code nor the designer gets to see them in advance. Hard-coding white
- * text on top of whatever arrives is how a venue with a mid-tone accent ends
- * up with a menu button nobody can read. Every foreground over a brand colour
- * is chosen here instead, by measuring.
+ * Every colour in `lib/palette.ts` has words drawn on it or in it, and two of
+ * them carry allergen warnings. "It looks fine on my screen" is not a
+ * measurement, so `scripts/verify-brand-contrast.ts` runs these numbers on
+ * every one of them.
  *
- * WCAG 2.1 relative luminance and contrast ratio, which is the same maths the
- * allergen palette was checked against.
+ * WCAG 2.1 relative luminance and contrast ratio.
  */
 
 /** The two foregrounds anything in this app is ever drawn in. */
 export const BRAND_INK = "#1c1917";
 export const BRAND_PAPER = "#ffffff";
 
-const INK = BRAND_INK;
-const PAPER = BRAND_PAPER;
-
 function channel(value: number): number {
   const c = value / 255;
   return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
-/** Parses `#rgb` and `#rrggbb`. Returns null for anything else. */
+/** Parses `#rgb` and `#rrggbb`. Null for anything else. */
 export function parseHex(hex: string): [number, number, number] | null {
   const text = hex.trim().replace(/^#/, "");
   const full =
@@ -58,33 +53,26 @@ export function contrastRatio(a: string, b: string): number | null {
 }
 
 /**
- * The readable foreground for a brand background: obsidian or white,
- * whichever has more contrast against it.
- *
- * Note what this does not do: it never rejects a venue's colour. A brand that
- * fails both is a brand nobody should set text on at all, and the caller's job
- * is then to keep the colour as a border or a mark rather than a fill.
- */
-export function readableInk(background: string): string {
-  const onInk = contrastRatio(background, INK);
-  const onPaper = contrastRatio(background, PAPER);
-  if (onInk === null || onPaper === null) return INK;
-  return onInk >= onPaper ? INK : PAPER;
-}
-
-/**
- * The best contrast a brand colour can manage, against either foreground the
- * app actually uses. Measured against obsidian rather than pure black, because
+ * The best contrast a colour can manage against either foreground the app
+ * actually uses. Measured against obsidian rather than pure black, because
  * obsidian is what gets drawn.
  */
 export function bestContrast(background: string): number {
   return Math.max(
-    contrastRatio(background, INK) ?? 0,
-    contrastRatio(background, PAPER) ?? 0,
+    contrastRatio(background, BRAND_INK) ?? 0,
+    contrastRatio(background, BRAND_PAPER) ?? 0,
   );
 }
 
-/** Whether a brand colour can carry body-sized text at all (AA is 4.5:1). */
+/** Whichever of the two has more contrast against a fill. */
+export function readableInk(background: string): string {
+  const onInk = contrastRatio(background, BRAND_INK);
+  const onPaper = contrastRatio(background, BRAND_PAPER);
+  if (onInk === null || onPaper === null) return BRAND_INK;
+  return onInk >= onPaper ? BRAND_INK : BRAND_PAPER;
+}
+
+/** Whether a colour can carry body-sized text at all (AA is 4.5:1). */
 export function canCarryText(background: string): boolean {
   return bestContrast(background) >= 4.5;
 }
