@@ -264,7 +264,7 @@ export async function validateImageUpload(
   if (file.size < MIN_UPLOAD_BYTES) {
     return fail(
       "file_too_small",
-      `Image is only ${file.size} bytes — too small to reconstruct a mesh from.`,
+      `Image is only ${file.size} bytes, too small to reconstruct a mesh from.`,
     );
   }
 

@@ -12,7 +12,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "verify:tracker": "tsx scripts/verify-plate-tracker.ts",
-    "verify:prices": "tsx scripts/verify-price-parser.ts"
+    "verify:prices": "tsx scripts/verify-price-parser.ts",
+    "verify:contrast": "tsx scripts/verify-brand-contrast.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

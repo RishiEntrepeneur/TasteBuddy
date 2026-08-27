@@ -1,8 +1,7 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { validateDraft, type DraftPayload } from "@/lib/admin/dish-validation";
-import { STAFF_COOKIE, readSession } from "@/lib/auth/staff-session";
+import { currentStaff, unauthorised } from "@/lib/admin/staff-guard";
 import {
   MENU_IMPORT_HOURLY_LIMIT,
   closeImportRun,
@@ -63,26 +62,14 @@ function errorResponse(
   );
 }
 
-async function currentRestaurantId(): Promise<string | null> {
-  const store = await cookies();
-  return readSession(store.get(STAFF_COOKIE)?.value)?.restaurantId ?? null;
-}
-
-function unauthorised() {
-  return errorResponse(
-    401,
-    "not_signed_in",
-    "Sign in with your venue access key.",
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*  POST — read a photo                                                        */
 /* -------------------------------------------------------------------------- */
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const restaurantId = await currentRestaurantId();
-  if (!restaurantId) return unauthorised();
+  const staff = await currentStaff();
+  if (!staff) return unauthorised();
+  const { restaurantId } = staff;
 
   if (!isVisionConfigured()) {
     return errorResponse(
@@ -139,7 +126,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return errorResponse(
       400,
       "unsupported_format",
-      "Menu import reads JPEG, PNG and WebP. An iPhone photo saved as HEIC needs converting first — 'Most Compatible' in Camera settings does it at the source.",
+      "Menu import reads JPEG, PNG and WebP. An iPhone photo saved as HEIC needs converting first: set Camera to 'Most Compatible' and take it again.",
     );
   }
 
@@ -271,8 +258,9 @@ export interface CommitOutcome {
 }
 
 export async function PUT(request: Request): Promise<NextResponse> {
-  const restaurantId = await currentRestaurantId();
-  if (!restaurantId) return unauthorised();
+  const staff = await currentStaff();
+  if (!staff) return unauthorised();
+  const { restaurantId } = staff;
 
   let body: CommitBody;
   try {
@@ -349,7 +337,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
         name: validated.draft.name,
         saved: false,
         reason: duplicate
-          ? "A dish with this name is already on your menu — it was left as it is."
+          ? "A dish with this name is already on your menu. It was left as it is."
           : "That dish could not be saved.",
       });
     }

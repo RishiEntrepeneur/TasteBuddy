@@ -118,7 +118,7 @@ export function AllergySelector({
 
         <span
           className={[
-            "mt-0.5 shrink-0 rounded-full border px-2.5 py-1 text-xs tabular-nums transition-colors",
+            "mt-0.5 shrink-0 rounded-control border px-2.5 py-1 text-xs tabular-nums transition-colors",
             activeCount > 0
               ? "border-sage/35 bg-sage-soft text-sage"
               : "border-border text-ink-muted",

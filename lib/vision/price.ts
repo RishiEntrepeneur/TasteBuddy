@@ -111,7 +111,7 @@ export function parseMenuPrice(raw: string | null | undefined): ParsedPrice {
     return {
       amountMinor: null,
       currency,
-      note: "More than one price is printed — pick the one this dish should list at.",
+      note: "More than one price is printed. Pick the one this dish lists at.",
     };
   }
 
@@ -132,7 +132,7 @@ export function parseMenuPrice(raw: string | null | undefined): ParsedPrice {
     return {
       amountMinor: null,
       currency,
-      note: "That price looks too large to be right — check it against the menu.",
+      note: "That price looks too large to be right. Check it against the menu.",
     };
   }
 

@@ -259,8 +259,15 @@ COMMIT;
 --  issue real venues a random key and give them the plaintext once.
 -- ============================================================================
 
-INSERT INTO restaurant_staff_keys (restaurant_id, key_hash, label)
-SELECT r.id, encode(digest('tastebuddy-dev-staff-key', 'sha256'), 'hex'), 'Development key'
-FROM restaurants r
-WHERE r.slug = 'aurelia-kitchen'
+INSERT INTO restaurant_staff_keys (key_hash, label)
+VALUES (encode(digest('tastebuddy-dev-staff-key', 'sha256'), 'hex'), 'Development key')
 ON CONFLICT (key_hash) DO NOTHING;
+
+-- The development key reaches both seed venues, so the venue switcher has
+-- something to switch between out of the box.
+INSERT INTO staff_key_venues (key_id, restaurant_id)
+SELECT k.id, r.id
+FROM restaurant_staff_keys k
+CROSS JOIN restaurants r
+WHERE k.key_hash = encode(digest('tastebuddy-dev-staff-key', 'sha256'), 'hex')
+ON CONFLICT DO NOTHING;

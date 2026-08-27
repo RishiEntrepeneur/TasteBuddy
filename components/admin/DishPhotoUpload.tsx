@@ -159,8 +159,8 @@ export function DishPhotoUpload({
 
   if (!menuItemId) {
     return (
-      <p className="rounded-lg border border-border bg-surface px-3 py-2.5 text-xs leading-relaxed text-ink-muted">
-        Save the dish first — a photo has to attach to something.
+      <p className="rounded-control border border-border bg-surface px-3 py-2.5 text-xs leading-relaxed text-ink-muted">
+        Save the dish first. A photo has to attach to something.
       </p>
     );
   }
@@ -173,7 +173,7 @@ export function DishPhotoUpload({
           <img
             src={preview}
             alt=""
-            className="size-16 shrink-0 rounded-lg border border-border object-cover"
+            className="size-16 shrink-0 rounded-control border border-border object-cover"
           />
         ) : null}
 
@@ -181,7 +181,7 @@ export function DishPhotoUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink transition hover:border-ink disabled:opacity-50"
+          className="flex items-center gap-2 rounded-control border border-border px-3 py-2 text-sm text-ink transition hover:border-ink disabled:opacity-50"
         >
           {busy ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -213,7 +213,7 @@ export function DishPhotoUpload({
       {error ? (
         <p
           role="alert"
-          className="flex items-start gap-2 rounded-lg border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
+          className="flex items-start gap-2 rounded-control border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
         >
           <AlertTriangle
             className="mt-0.5 size-4 shrink-0 text-terracotta"
@@ -224,7 +224,7 @@ export function DishPhotoUpload({
       ) : null}
 
       {result ? (
-        <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
+        <div className="rounded-control border border-border bg-surface px-3 py-2.5">
           <p className="flex items-center gap-2 text-sm font-medium text-ink">
             {result.status === "ready" ? (
               <CheckCircle2 className="size-4 text-sage" aria-hidden />

@@ -11,6 +11,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { AllergenProfilePicker } from "@/components/AllergenProfilePicker";
 import { MenuItemCard } from "@/components/MenuItemCard";
+import { readableInk } from "@/lib/brand";
 import { useAllergenProfile } from "@/lib/hooks/useAllergenProfile";
 import { useSavedDishes } from "@/lib/hooks/useSavedDishes";
 import { evaluateMenuItem } from "@/lib/menu-filter";
@@ -69,6 +70,10 @@ export function RestaurantDashboard({
   } = useAllergenProfile();
 
   const savedDishes = useSavedDishes();
+
+  // The venue picks its own header colour; the text on it is measured against
+  // that rather than assumed to be white.
+  const headerInk = readableInk(restaurant.branding.primaryColor);
 
   const [portions, setPortions] = useState<Record<string, number>>({});
   const [hideUnsafe, setHideUnsafe] = useState(false);
@@ -132,26 +137,30 @@ export function RestaurantDashboard({
         } as React.CSSProperties
       }
     >
+      {/* Same rule as the AR button: the foreground is measured, not assumed. */}
       <header
-        className="safe-top px-4 pb-6 text-white"
-        style={{ backgroundColor: restaurant.branding.primaryColor }}
+        className="safe-top px-4 pb-6"
+        style={{
+          backgroundColor: restaurant.branding.primaryColor,
+          color: headerInk,
+        }}
       >
-        <p className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-white/60">
+        <p className="flex items-center gap-1.5 text-xs uppercase tracking-widest opacity-60">
           <QrCode className="size-3" aria-hidden />
           TasteBuddy
         </p>
 
-        <h1 className="mt-3 text-2xl font-semibold leading-tight">
+        <h1 className="mt-3 font-display text-[2rem] leading-[1.1] tracking-tight">
           {restaurant.name}
         </h1>
-        <p className="mt-1 text-sm text-white/75">{restaurant.tagline}</p>
+        <p className="mt-1 text-sm opacity-75">{restaurant.tagline}</p>
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setProfileOpen((open) => !open)}
             aria-expanded={profileOpen}
-            className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-sm backdrop-blur transition hover:bg-white/25"
+            className="flex items-center gap-1.5 rounded-control bg-white/15 px-3 py-2 text-sm backdrop-blur transition hover:bg-white/25"
           >
             <SlidersHorizontal className="size-3.5" aria-hidden />
             {profile.avoid.length > 0
@@ -164,7 +173,7 @@ export function RestaurantDashboard({
             onClick={() => setHideUnsafe((hide) => !hide)}
             aria-pressed={hideUnsafe}
             className={[
-              "flex items-center gap-1.5 rounded-full px-3 py-2 text-sm backdrop-blur transition",
+              "flex items-center gap-1.5 rounded-control px-3 py-2 text-sm backdrop-blur transition",
               hideUnsafe
                 ? "bg-white text-black"
                 : "bg-white/15 hover:bg-white/25",
@@ -218,18 +227,20 @@ export function RestaurantDashboard({
               className="mx-auto size-8 text-ink-muted"
               aria-hidden
             />
-            <p className="mt-4 font-medium">Nothing on this menu fits</p>
+            <p className="mt-4 font-display text-xl">
+              Nothing here fits your profile
+            </p>
             <p className="mt-1 text-sm text-ink-muted">
-              Loosen a filter, or ask a member of staff about off-menu options.
+              Loosen a filter, or ask your server what the kitchen can adapt.
             </p>
           </div>
         ) : (
           grouped.map((group) => (
-            <section key={group.category} className="pt-6">
-              <h2 className="text-xs font-medium uppercase tracking-widest text-ink-muted">
+            <section key={group.category} className="pt-8">
+              <h2 className="border-b border-border pb-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-ink-muted">
                 {CATEGORY_LABELS[group.category]}
               </h2>
-              <div className="mt-3 space-y-3">
+              <div className="space-y-1">
                 {group.items.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -248,10 +259,10 @@ export function RestaurantDashboard({
           ))
         )}
 
-        <p className="pt-10 text-center text-xs leading-relaxed text-ink-muted">
-          Your profile is stored on this device only. Allergen data is provided
-          by {restaurant.name}. If you have a severe allergy, always confirm
-          with your server.
+        <p className="mt-12 border-t border-border pt-5 text-xs leading-relaxed text-ink-muted">
+          Your profile stays on this device. Allergen information comes from{" "}
+          {restaurant.name}. With a severe allergy, always confirm with your
+          server.
         </p>
       </main>
 

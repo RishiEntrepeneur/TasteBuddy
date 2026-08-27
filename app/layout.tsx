@@ -1,6 +1,30 @@
 import type { Metadata, Viewport } from "next";
+import { Fraunces, Instrument_Sans } from "next/font/google";
 
 import "./globals.css";
+
+/*
+ * Two faces, doing different jobs.
+ *
+ * Fraunces carries the restaurant's name and the dish names: it is an
+ * old-style serif with an optical-size axis, so it stays warm at menu sizes
+ * instead of turning into a wall of neutral sans. Instrument Sans handles
+ * everything a person has to act on, where character is a liability.
+ *
+ * Both are variable and subset to Latin, which is one file each.
+ */
+const display = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display-variable",
+  display: "swap",
+  axes: ["SOFT", "WONK", "opsz"],
+});
+
+const sans = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans-variable",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -36,7 +60,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <body className="min-h-dvh bg-surface text-ink antialiased">
         {children}
       </body>

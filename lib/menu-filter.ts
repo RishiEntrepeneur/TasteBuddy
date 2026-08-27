@@ -63,7 +63,7 @@ export function evaluateMenuItem(
       key: entry.key,
       severity: entry.severity,
       message: entry.note
-        ? `${describeSeverity(entry.severity)} ${allergen.label.toLowerCase()} — ${entry.note}`
+        ? `${describeSeverity(entry.severity)} ${allergen.label.toLowerCase()}. ${entry.note}`
         : `${describeSeverity(entry.severity)} ${allergen.label.toLowerCase()}.`,
     });
   }

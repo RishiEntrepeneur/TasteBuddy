@@ -266,7 +266,7 @@ function normaliseDishes(raw: unknown): ExtractedDish[] {
 
     const reviewNote =
       legibility === "unclear"
-        ? "Part of this entry was hard to read — check it against the menu."
+        ? "Part of this entry was hard to read. Check it against the menu."
         : price.note;
 
     dishes.push({

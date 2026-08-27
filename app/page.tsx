@@ -45,7 +45,7 @@ export default async function HomePage() {
           <QrCode className="size-3" aria-hidden />
           TasteBuddy
         </p>
-        <h1 className="mt-4 text-3xl font-semibold leading-tight">
+        <h1 className="mt-4 font-display text-[2.6rem] leading-[1.05] tracking-tight">
           See the dish before you order it.
         </h1>
         <p className="mt-3 text-base leading-relaxed text-ink-muted">

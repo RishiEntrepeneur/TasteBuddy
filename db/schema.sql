@@ -483,3 +483,49 @@ CREATE INDEX IF NOT EXISTS menu_import_runs_venue_idx
 -- Spotting a venue re-reading the same photo over and over.
 CREATE INDEX IF NOT EXISTS menu_import_runs_checksum_idx
   ON menu_import_runs (source_checksum);
+
+-- ============================================================================
+--  Migration 006 — one key, several venues
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+--  staff_key_venues
+--
+--  A key used to belong to exactly one venue, which is wrong for the customer
+--  that matters commercially: a group. A head chef running four sites had to
+--  carry four keys and sign in and out to move between them, and there was no
+--  way to hand a regional manager access to three sites but not the fourth.
+--
+--  Access is now a grant per (key, venue). The key's own row says nothing
+--  about which venues it reaches, so there is one place to read and one place
+--  to revoke.
+--
+--  Revoking a key stays a property of the key, not the grant: a lost iPad is
+--  lost for every site at once, and having to remember which grants to pull
+--  is how a stale grant survives.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS staff_key_venues (
+  key_id         UUID NOT NULL REFERENCES restaurant_staff_keys (id) ON DELETE CASCADE,
+  restaurant_id  UUID NOT NULL REFERENCES restaurants (id) ON DELETE CASCADE,
+  granted_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (key_id, restaurant_id)
+);
+
+-- "Which venues may this key reach" is the sign-in query; the primary key
+-- already serves it. This one answers "who can reach this venue", which is
+-- what the access-keys panel lists and what the last-key-standing check reads.
+CREATE INDEX IF NOT EXISTS staff_key_venues_venue_idx
+  ON staff_key_venues (restaurant_id);
+
+-- Carry the existing single-venue keys across.
+INSERT INTO staff_key_venues (key_id, restaurant_id, granted_at)
+SELECT id, restaurant_id, created_at
+  FROM restaurant_staff_keys
+ WHERE restaurant_id IS NOT NULL
+    ON CONFLICT DO NOTHING;
+
+-- With the grants moved, the column on the key row would be a second answer
+-- to the same question, and the two would drift the first time a key gained a
+-- second venue. Dropping it takes its index with it.
+ALTER TABLE restaurant_staff_keys DROP COLUMN IF EXISTS restaurant_id;

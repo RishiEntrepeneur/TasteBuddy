@@ -38,7 +38,7 @@ export default function ProfilePage() {
           </span>
         </header>
 
-        <h1 className="mt-3 text-[28px] font-semibold leading-tight tracking-tight text-ink">
+        <h1 className="mt-3 font-display text-[2rem] leading-[1.1] tracking-tight text-ink">
           What do you avoid?
         </h1>
         <p className="mt-2.5 text-[15px] leading-relaxed text-ink-muted">

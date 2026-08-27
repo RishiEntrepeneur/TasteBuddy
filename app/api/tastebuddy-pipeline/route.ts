@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { STAFF_COOKIE, readSession } from "@/lib/auth/staff-session";
+import { currentStaff } from "@/lib/admin/staff-guard";
 import {
   ownsMenuItem,
   persistGeneratedAsset,
@@ -168,9 +167,8 @@ async function recordAsset(payload: PipelineAssetPayload): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const store = await cookies();
-  const session = readSession(store.get(STAFF_COOKIE)?.value);
-  if (!session) {
+  const staff = await currentStaff();
+  if (!staff) {
     return errorResponse(
       401,
       "not_signed_in",
@@ -215,7 +213,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Checked before validation work and long before the generator is called:
   // a dish from another venue must not even cost us a hash.
-  if (!(await ownsMenuItem(session.restaurantId, menuItemId))) {
+  if (!(await ownsMenuItem(staff.restaurantId, menuItemId))) {
     return errorResponse(
       404,
       "menu_item_not_found",

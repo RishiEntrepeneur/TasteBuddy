@@ -476,7 +476,7 @@ interface ARChromeProps {
 
 const TRACKING_COPY: Readonly<Record<TrackingState, string>> = {
   searching: "Point at an empty plate",
-  acquiring: "Holding still — finding the plate",
+  acquiring: "Hold still, finding the plate",
   locked: "Plate locked",
   manual: "Placed by hand",
 };
@@ -515,7 +515,7 @@ function ARChrome({
         <button
           type="button"
           onClick={onClose}
-          className="pointer-events-auto flex size-10 shrink-0 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur"
+          className="pointer-events-auto flex size-10 shrink-0 items-center justify-center rounded-control bg-black/55 text-white backdrop-blur"
           aria-label="Close AR view"
         >
           <X className="size-5" aria-hidden />
@@ -528,7 +528,7 @@ function ARChrome({
       {item.hasAllergenConflict ? (
         <div
           role="alert"
-          className="safe-top pointer-events-none absolute inset-x-0 top-16 z-20 mx-4 rounded-xl border-2 border-white/85 bg-[var(--color-ar-alert)] px-4 py-3 text-white shadow-lg tb-alert-pulse"
+          className="safe-top pointer-events-none absolute inset-x-0 top-16 z-20 mx-4 rounded-control border-2 border-white/85 bg-[var(--color-ar-alert)] px-4 py-3 text-white shadow-lg tb-alert-pulse"
         >
           <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide">
             <ShieldAlert className="size-4 shrink-0" aria-hidden />
@@ -548,7 +548,7 @@ function ARChrome({
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <div
             className={[
-              "size-48 rounded-full border-2 border-dashed border-white/70",
+              "size-48 rounded-control border-2 border-dashed border-white/70",
               trackingState === "acquiring" ? "tb-pulse" : "",
             ].join(" ")}
           />
@@ -587,14 +587,14 @@ function ARChrome({
                   <button
                     type="button"
                     onClick={onRetry}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black"
+                    className="rounded-control bg-white px-4 py-2 text-sm font-medium text-black"
                   >
                     Try again
                   </button>
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-full border border-white/40 px-4 py-2 text-sm font-medium text-white"
+                    className="rounded-control border border-white/40 px-4 py-2 text-sm font-medium text-white"
                   >
                     Back to menu
                   </button>
@@ -608,7 +608,7 @@ function ARChrome({
       {/* Bottom controls */}
       {cameraStatus === "granted" ? (
         <div className="safe-bottom pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 bg-gradient-to-t from-black/70 to-transparent px-4 pt-12">
-          <p className="pointer-events-none flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-2 text-xs text-white/85 backdrop-blur">
+          <p className="pointer-events-none flex items-center gap-1.5 rounded-control bg-black/55 px-3 py-2 text-xs text-white/85 backdrop-blur">
             <Hand className="size-3.5" aria-hidden />
             Tap anywhere to place it yourself
           </p>
@@ -617,7 +617,7 @@ function ARChrome({
             <button
               type="button"
               onClick={onRetrack}
-              className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-2 text-xs font-medium text-black"
+              className="pointer-events-auto flex items-center gap-1.5 rounded-control bg-white/95 px-3 py-2 text-xs font-medium text-black"
             >
               <RotateCcw className="size-3.5" aria-hidden />
               Re-track

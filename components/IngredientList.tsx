@@ -11,6 +11,15 @@ interface IngredientListProps {
   /** Allergens the diner avoids — matching ingredients are called out. */
   avoided: readonly AllergenKey[];
   portion: number;
+  /**
+   * Nutrition, rendered inside the same disclosure.
+   *
+   * It used to sit above as a permanent four-column grid on every dish, which
+   * is not how anybody reads a menu: you choose by the dish and check the
+   * numbers on the two you are deciding between. Behind the same toggle as the
+   * ingredients, both are one tap away and neither is in the way.
+   */
+  nutrition?: React.ReactNode;
 }
 
 function formatQuantity(grams: number | null, portion: number): string {
@@ -32,11 +41,12 @@ export function IngredientList({
   ingredients,
   avoided,
   portion,
+  nutrition,
 }: IngredientListProps) {
   const [open, setOpen] = useState(false);
   const id = useId();
 
-  if (ingredients.length === 0) return null;
+  if (ingredients.length === 0 && !nutrition) return null;
 
   const avoidSet = new Set(avoided);
 
@@ -50,7 +60,10 @@ export function IngredientList({
         className="flex w-full items-center justify-between gap-2 text-left text-sm text-ink-muted transition-colors hover:text-ink"
       >
         <span>
-          {ingredients.length} ingredient{ingredients.length === 1 ? "" : "s"}
+          {ingredients.length
+            ? `${ingredients.length} ingredient${ingredients.length === 1 ? "" : "s"}`
+            : "Nutrition"}
+          {ingredients.length && nutrition ? " and nutrition" : ""}
         </span>
         <ChevronDown
           className={[
@@ -62,7 +75,9 @@ export function IngredientList({
       </button>
 
       {open ? (
-        <ul id={id} className="mt-2 space-y-1">
+        <div id={id}>
+          {nutrition}
+          <ul className="mt-2 space-y-1">
           {ingredients.map(({ ingredient, quantityG, isOptional, note }) => {
             const flagged = ingredient.allergens.filter((key) =>
               avoidSet.has(key),
@@ -107,7 +122,8 @@ export function IngredientList({
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </div>
       ) : null}
     </div>
   );

@@ -29,7 +29,7 @@ export async function generateMetadata({
 
   return {
     title: restaurant.name,
-    description: `${restaurant.tagline} — see every dish in AR, sized to your portion and checked against your allergies.`,
+    description: `${restaurant.tagline}. See every dish in AR, sized to your portion and checked against your allergies.`,
     openGraph: {
       title: `${restaurant.name} · TasteBuddy`,
       description: restaurant.tagline,

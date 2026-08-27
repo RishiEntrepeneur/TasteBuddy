@@ -65,8 +65,16 @@
 
   --color-safe: #15803d;
 
-  --radius-card: 1rem;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /*
+   * Sharp. A 16px radius on everything is the house style of software that
+   * has not decided what it is; a menu, a wine list and a bill are all set on
+   * square paper, and the app is a piece of the same printed matter.
+   */
+  --radius-card: 3px;
+  --radius-control: 3px;
+
+  --font-sans: var(--font-sans-variable), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-variable), Georgia, "Times New Roman", serif;
 }
 
 /*

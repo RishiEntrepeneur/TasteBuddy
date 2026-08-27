@@ -107,7 +107,7 @@ interface DishFormProps {
 }
 
 const field =
-  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-sage focus:ring-2 focus:ring-sage/25";
+  "w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-sage focus:ring-2 focus:ring-sage/25";
 const labelClass =
   "block text-xs font-medium uppercase tracking-wide text-ink-muted";
 
@@ -343,7 +343,7 @@ export function DishForm({
                       ),
                     })
                   }
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-ink-muted transition-colors hover:border-terracotta hover:text-terracotta"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-control border border-border text-ink-muted transition-colors hover:border-terracotta hover:text-terracotta"
                 >
                   <X className="size-3.5" aria-hidden />
                 </button>
@@ -361,7 +361,7 @@ export function DishForm({
             aria-label="Search ingredients"
           />
           {matches.length ? (
-            <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface-raised shadow-lg">
+            <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-control border border-border bg-surface-raised shadow-lg">
               {matches.map((entry) => (
                 <li key={entry.slug}>
                   <button
@@ -424,7 +424,7 @@ export function DishForm({
       <fieldset>
         <legend className={labelClass}>Extra allergen declarations</legend>
         <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-          For what the ingredient list cannot know — a shared fryer, a shared
+          For what the ingredient list cannot know: a shared fryer, a shared
           prep surface, a supplier warning.
         </p>
 
@@ -478,7 +478,7 @@ export function DishForm({
                     allergens: draft.allergens.filter((_, i) => i !== index),
                   })
                 }
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-ink-muted transition-colors hover:border-terracotta hover:text-terracotta"
+                className="flex size-8 shrink-0 items-center justify-center rounded-control border border-border text-ink-muted transition-colors hover:border-terracotta hover:text-terracotta"
               >
                 <X className="size-3.5" aria-hidden />
               </button>
@@ -496,7 +496,7 @@ export function DishForm({
               ],
             })
           }
-          className="mt-2 flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-ink hover:text-ink"
+          className="mt-2 flex items-center gap-1.5 rounded-control border border-border px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-ink hover:text-ink"
         >
           <Plus className="size-3.5" aria-hidden />
           Add declaration
@@ -506,7 +506,7 @@ export function DishForm({
       {error ? (
         <p
           role="alert"
-          className="rounded-lg border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
+          className="rounded-control border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
         >
           {error}
         </p>
@@ -516,14 +516,14 @@ export function DishForm({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50"
+          className="rounded-control bg-sage px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50"
         >
           {saving ? "Saving…" : draft.id ? "Save changes" : "Add to menu"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:text-ink"
+          className="rounded-control border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:text-ink"
         >
           Cancel
         </button>
@@ -531,7 +531,7 @@ export function DishForm({
           <button
             type="button"
             onClick={onDelete}
-            className="ml-auto flex items-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:border-terracotta hover:text-terracotta"
+            className="ml-auto flex items-center gap-1.5 rounded-control border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:border-terracotta hover:text-terracotta"
           >
             <Trash2 className="size-3.5" aria-hidden />
             Delete dish

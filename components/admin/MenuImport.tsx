@@ -89,7 +89,7 @@ function currencySymbol(currency: string, locale: string): string {
 }
 
 const field =
-  "w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-ink outline-none focus:border-sage focus:ring-2 focus:ring-sage/25";
+  "w-full rounded-control border border-border bg-surface px-2.5 py-1.5 text-sm text-ink outline-none focus:border-sage focus:ring-2 focus:ring-sage/25";
 
 function toRow(dish: ExtractedDish): Row {
   return {
@@ -247,7 +247,7 @@ export function MenuImport({
                 <li key={index} className="text-sm text-ink">
                   <span className="font-medium">{outcome.name}</span>
                   {outcome.reason ? (
-                    <span className="text-ink-muted"> — {outcome.reason}</span>
+                    <span className="text-ink-muted">. {outcome.reason}</span>
                   ) : null}
                 </li>
               ))}
@@ -258,7 +258,7 @@ export function MenuImport({
         <button
           type="button"
           onClick={onCancel}
-          className="mt-5 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-surface transition"
+          className="mt-5 rounded-control bg-ink px-5 py-2.5 text-sm font-semibold text-surface transition"
         >
           Back to the menu
         </button>
@@ -283,7 +283,7 @@ export function MenuImport({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={reading}
-            className="flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-surface transition disabled:opacity-50"
+            className="flex items-center gap-2 rounded-control bg-ink px-5 py-2.5 text-sm font-semibold text-surface transition disabled:opacity-50"
           >
             {reading ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -296,7 +296,7 @@ export function MenuImport({
             type="button"
             onClick={onCancel}
             disabled={reading}
-            className="rounded-full border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:text-ink disabled:opacity-50"
+            className="rounded-control border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:text-ink disabled:opacity-50"
           >
             Cancel
           </button>
@@ -322,7 +322,7 @@ export function MenuImport({
         {error ? (
           <p
             role="alert"
-            className="mt-3 flex items-start gap-2 rounded-lg border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
+            className="mt-3 flex items-start gap-2 rounded-control border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
           >
             <AlertTriangle
               className="mt-0.5 size-4 shrink-0 text-terracotta"
@@ -350,16 +350,15 @@ export function MenuImport({
             {" "}
             <span className="text-ink">
               {needsAttention === 1
-                ? "One row is unticked below"
-                : `${needsAttention} rows are unticked below`}{" "}
-              — give them a price, or leave them out.
+                ? "One row has no price and is unticked."
+                : `${needsAttention} rows have no price and are unticked.`}
             </span>
           </>
         ) : null}
       </p>
 
       {/* The one thing a photo cannot tell anyone. */}
-      <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-terracotta/40 bg-terracotta-soft px-3.5 py-3">
+      <div className="mt-4 flex items-start gap-2.5 rounded-control border border-terracotta/40 bg-terracotta-soft px-3.5 py-3">
         <ShieldAlert
           className="mt-0.5 size-4 shrink-0 text-terracotta"
           aria-hidden
@@ -369,10 +368,10 @@ export function MenuImport({
             No allergens have been read from this menu
           </p>
           <p className="mt-1 text-sm leading-relaxed text-ink">
-            We do not guess what a dish contains — someone with an allergy is
-            relying on the answer, and only your kitchen knows it. These dishes
-            are saved switched off. Open each one, declare its allergens and
-            portion, then turn it on.
+            We never guess what is in a dish. Only your kitchen knows that,
+            and someone with an allergy is relying on the answer. Every dish
+            below is saved switched off until you have opened it, declared its
+            allergens and set the portion.
           </p>
         </div>
       </div>
@@ -398,7 +397,7 @@ export function MenuImport({
         {rows.map((row, index) => (
           <li
             key={index}
-            className={`rounded-lg border px-3 py-3 transition ${
+            className={`rounded-control border px-3 py-3 transition ${
               row.include
                 ? "border-border bg-surface"
                 : "border-border/60 bg-surface/40 opacity-60"
@@ -471,16 +470,15 @@ export function MenuImport({
             {/* Read off the page, kept as a reading aid and nothing more. */}
             {row.printedNotes ? (
               <p className="mt-2 pl-6.5 text-xs leading-relaxed text-ink-muted">
-                Printed beside this dish:{" "}
-                <span className="text-ink">“{row.printedNotes}”</span> — declare
-                allergens yourself when you open it.
+                Printed on the menu:{" "}
+                <span className="text-ink">“{row.printedNotes}”</span>. You
+                still declare the allergens yourself.
               </p>
             ) : null}
 
             {row.alreadyOnMenu ? (
               <p className="mt-2 pl-6.5 text-xs leading-relaxed text-ink-muted">
-                Already on your menu — ticking this will not overwrite the
-                dish you have.
+                Already on your menu. Ticking this will not overwrite it.
               </p>
             ) : null}
 
@@ -498,7 +496,7 @@ export function MenuImport({
       {error ? (
         <p
           role="alert"
-          className="mt-4 flex items-start gap-2 rounded-lg border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
+          className="mt-4 flex items-start gap-2 rounded-control border border-terracotta/40 bg-terracotta-soft px-3 py-2 text-sm text-ink"
         >
           <AlertTriangle
             className="mt-0.5 size-4 shrink-0 text-terracotta"
@@ -509,10 +507,9 @@ export function MenuImport({
       ) : null}
 
       {includedCount === 0 ? (
-        <p className="mt-4 rounded-lg border border-border bg-surface px-3 py-2 text-sm leading-relaxed text-ink-muted">
-          Nothing is ticked. Every dish here is either already on your menu or
-          still needs a price — which is what you would expect from
-          re-photographing a menu you have already entered.
+        <p className="mt-4 rounded-control border border-border bg-surface px-3 py-2 text-sm leading-relaxed text-ink-muted">
+          Nothing is ticked. Every dish here is already on your menu, or has
+          no price yet.
         </p>
       ) : null}
 
@@ -521,7 +518,7 @@ export function MenuImport({
           type="button"
           onClick={() => void commit()}
           disabled={saving || includedCount === 0}
-          className="flex items-center gap-2 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50"
+          className="flex items-center gap-2 rounded-control bg-sage px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -537,7 +534,7 @@ export function MenuImport({
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:text-ink disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-control border border-border px-4 py-2.5 text-sm text-ink-muted transition hover:text-ink disabled:opacity-50"
         >
           <X className="size-3.5" aria-hidden />
           Discard

@@ -14,7 +14,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/"
-        className="mt-6 rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:border-ink"
+        className="mt-6 rounded-control border border-border px-4 py-2 text-sm font-medium transition hover:border-ink"
       >
         Back to TasteBuddy
       </Link>

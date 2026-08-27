@@ -82,7 +82,7 @@ export function SavedDishesView() {
           </span>
         </header>
 
-        <h1 className="mt-3 text-[28px] font-semibold leading-tight tracking-tight text-ink">
+        <h1 className="mt-3 font-display text-[2rem] leading-[1.1] tracking-tight text-ink">
           Saved dishes
         </h1>
         <p className="mt-2.5 text-[15px] leading-relaxed text-ink-muted">
@@ -130,7 +130,7 @@ export function SavedDishesView() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[15px] font-semibold text-ink">
+                      <p className="font-display text-[17px] leading-snug text-ink">
                         {entry.item.name}
                       </p>
                       <Link
@@ -148,7 +148,7 @@ export function SavedDishesView() {
                         type="button"
                         onClick={() => void remove(entry.item.id)}
                         aria-label={`Remove ${entry.item.name}`}
-                        className="flex size-8 items-center justify-center rounded-full border border-border text-ink-muted transition-colors hover:border-terracotta hover:text-terracotta"
+                        className="flex size-8 items-center justify-center rounded-control border border-border text-ink-muted transition-colors hover:border-terracotta hover:text-terracotta"
                       >
                         <Trash2 className="size-4" aria-hidden />
                       </button>
@@ -158,7 +158,7 @@ export function SavedDishesView() {
                   {evaluated.hasAllergenConflict ? (
                     <p role="alert" className="mt-2.5 text-sm text-ink">
                       <span className="font-semibold text-terracotta">
-                        No longer safe for you —{" "}
+                        No longer safe for you.{" "}
                       </span>
                       {evaluated.conflicts
                         .filter((conflict) => conflict.type === "allergen")

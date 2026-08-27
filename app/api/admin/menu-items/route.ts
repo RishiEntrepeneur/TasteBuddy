@@ -1,8 +1,7 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { validateDraft, type DraftPayload } from "@/lib/admin/dish-validation";
-import { STAFF_COOKIE, readSession } from "@/lib/auth/staff-session";
+import { currentStaff, unauthorised } from "@/lib/admin/staff-guard";
 import {
   deleteMenuItem,
   listIngredientCatalogue,
@@ -33,27 +32,14 @@ function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json<ApiError>({ error: { code, message } }, { status });
 }
 
-/** Resolves the signed-in venue, or null when there is no valid session. */
-async function currentRestaurantId(): Promise<string | null> {
-  const store = await cookies();
-  return readSession(store.get(STAFF_COOKIE)?.value)?.restaurantId ?? null;
-}
-
-function unauthorised() {
-  return errorResponse(
-    401,
-    "not_signed_in",
-    "Sign in with your venue access key.",
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*  Routes                                                                     */
 /* -------------------------------------------------------------------------- */
 
 export async function GET(): Promise<NextResponse> {
-  const restaurantId = await currentRestaurantId();
-  if (!restaurantId) return unauthorised();
+  const staff = await currentStaff();
+  if (!staff) return unauthorised();
+  const { restaurantId } = staff;
 
   try {
     const [restaurant, items, catalogue] = await Promise.all([
@@ -81,8 +67,9 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const restaurantId = await currentRestaurantId();
-  if (!restaurantId) return unauthorised();
+  const staff = await currentStaff();
+  if (!staff) return unauthorised();
+  const { restaurantId } = staff;
 
   let payload: DraftPayload;
   try {
@@ -115,8 +102,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 
 export async function PATCH(request: Request): Promise<NextResponse> {
-  const restaurantId = await currentRestaurantId();
-  if (!restaurantId) return unauthorised();
+  const staff = await currentStaff();
+  if (!staff) return unauthorised();
+  const { restaurantId } = staff;
 
   let payload: { menuItemId?: unknown; isAvailable?: unknown };
   try {
@@ -167,8 +155,9 @@ export async function PATCH(request: Request): Promise<NextResponse> {
 }
 
 export async function DELETE(request: Request): Promise<NextResponse> {
-  const restaurantId = await currentRestaurantId();
-  if (!restaurantId) return unauthorised();
+  const staff = await currentStaff();
+  if (!staff) return unauthorised();
+  const { restaurantId } = staff;
 
   const menuItemId = new URL(request.url).searchParams
     .get("menuItemId")

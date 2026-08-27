@@ -64,7 +64,7 @@ export function AllergenProfilePicker({
           <button
             type="button"
             onClick={onClear}
-            className="flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-ink-muted transition hover:text-ink"
+            className="flex shrink-0 items-center gap-1 rounded-control border border-border px-3 py-1.5 text-xs text-ink-muted transition hover:text-ink"
           >
             <X className="size-3" aria-hidden />
             Clear
@@ -87,7 +87,7 @@ export function AllergenProfilePicker({
                   aria-pressed={active}
                   title={allergen.description}
                   className={[
-                    "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition",
+                    "flex items-center gap-1.5 rounded-control border px-3 py-1.5 text-sm transition",
                     active
                       ? "border-danger bg-danger text-[var(--color-on-danger)]"
                       : "border-border text-ink-muted hover:border-ink hover:text-ink",
@@ -128,7 +128,7 @@ export function AllergenProfilePicker({
               <span className="text-ink-muted">
                 Max {NUTRITION_LABELS[key].toLowerCase()}
               </span>
-              <span className="mt-1 flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 focus-within:border-ink">
+              <span className="mt-1 flex items-center gap-1 rounded-control border border-border px-2 py-1.5 focus-within:border-ink">
                 <input
                   type="number"
                   inputMode="numeric"

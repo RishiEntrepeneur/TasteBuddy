@@ -11,6 +11,7 @@ import {
 
 import { IngredientList } from "@/components/IngredientList";
 import { PortionSlider } from "@/components/PortionSlider";
+import { readableInk } from "@/lib/brand";
 import { NUTRITION_LABELS, formatNutrient, formatPrice } from "@/lib/nutrition";
 import type {
   AllergenKey,
@@ -61,15 +62,18 @@ export function MenuItemCard({
   return (
     <article
       className={[
-        "rounded-card border bg-surface-raised p-4 transition",
+        "transition",
+        // The border and fill are the alarm, not the frame. A menu where every
+        // dish sits in an identical box gives a diner nothing to look at; one
+        // where only the unsafe dish is boxed says the thing at a glance.
         item.hasAllergenConflict
-          ? "border-danger/60 bg-danger-soft"
-          : "border-border",
+          ? "rounded-card border border-danger/60 bg-danger-soft p-4"
+          : "border-b border-border py-5 last:border-b-0",
       ].join(" ")}
     >
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold leading-snug">{item.name}</h3>
+          <h3 className="font-display text-[19px] leading-snug">{item.name}</h3>
           <p className="mt-1 text-sm leading-relaxed text-ink-muted">
             {item.description}
           </p>
@@ -83,7 +87,7 @@ export function MenuItemCard({
               isSaved ? `Remove ${item.name} from saved` : `Save ${item.name}`
             }
             className={[
-              "flex size-8 items-center justify-center rounded-full border transition-colors",
+              "flex size-8 items-center justify-center rounded-control border transition-colors",
               isSaved
                 ? "border-sage bg-sage text-white"
                 : "border-border text-ink-muted hover:border-ink hover:text-ink",
@@ -109,7 +113,7 @@ export function MenuItemCard({
       {allergenConflicts.length > 0 ? (
         <div
           role="alert"
-          className="mt-3 rounded-lg border border-danger/50 bg-danger/10 px-3 py-2"
+          className="mt-3 rounded-control border border-danger/50 bg-danger/10 px-3 py-2"
         >
           <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-danger">
             <AlertTriangle className="size-3.5" aria-hidden />
@@ -134,10 +138,15 @@ export function MenuItemCard({
         </ul>
       ) : null}
 
-      {item.conflicts.length === 0 ? (
-        <p className="mt-3 flex items-center gap-1.5 text-sm text-safe">
-          <Check className="size-4" aria-hidden />
-          Matches your profile
+      {/*
+        Only shown to a diner who has actually set a profile. On an empty
+        profile it confirmed nothing, on every dish, which is how a reassurance
+        stops being read at all.
+      */}
+      {item.conflicts.length === 0 && avoided.length > 0 ? (
+        <p className="mt-2.5 flex items-center gap-1.5 text-xs text-safe">
+          <Check className="size-3.5" aria-hidden />
+          No {avoided.length === 1 ? "conflict" : "conflicts"} with your profile
         </p>
       ) : null}
 
@@ -150,36 +159,45 @@ export function MenuItemCard({
         />
       </div>
 
-      <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-border pt-3">
-        {SUMMARY_NUTRIENTS.map((key) => (
-          <div key={key}>
-            <dt className="text-[11px] uppercase tracking-wide text-ink-muted">
-              {NUTRITION_LABELS[key]}
-            </dt>
-            <dd className="text-sm font-medium tabular-nums">
-              {formatNutrient(key, item.scaledNutrition[key])}
-            </dd>
-          </div>
-        ))}
-      </dl>
-
       <IngredientList
         ingredients={item.ingredients}
         avoided={avoided}
         portion={portion}
+        nutrition={
+          <dl className="mt-2 grid grid-cols-4 gap-2 pb-1">
+            {SUMMARY_NUTRIENTS.map((key) => (
+              <div key={key}>
+                <dt className="text-[11px] uppercase tracking-wide text-ink-muted">
+                  {NUTRITION_LABELS[key]}
+                </dt>
+                <dd className="text-sm tabular-nums text-ink">
+                  {formatNutrient(key, item.scaledNutrition[key])}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        }
       />
 
+      {/*
+        The venue's accent, with a foreground measured against it rather than
+        assumed. This button used to be white on whatever the restaurant chose,
+        which for the seeded orange was 3.1:1 and failed AA at 14px.
+      */}
       <button
         type="button"
         onClick={onOpenAr}
         disabled={!arReady && !arPending}
         className={[
-          "mt-4 flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-white transition",
-          "disabled:cursor-not-allowed disabled:bg-ink-muted/40 disabled:text-ink-muted",
+          "mt-4 flex w-full items-center justify-center gap-2 rounded-control px-4 py-3 text-[13px] font-semibold uppercase tracking-[0.08em] transition",
+          "disabled:cursor-not-allowed disabled:bg-transparent disabled:text-ink-muted disabled:ring-1 disabled:ring-border",
         ].join(" ")}
         style={
           arReady || arPending
-            ? { backgroundColor: restaurant.branding.accentColor }
+            ? {
+                backgroundColor: restaurant.branding.accentColor,
+                color: readableInk(restaurant.branding.accentColor),
+              }
             : undefined
         }
       >

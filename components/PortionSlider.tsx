@@ -45,7 +45,7 @@ export function PortionSlider({
   if (fixed) {
     return (
       <p className="text-sm text-ink-muted">
-        Served as {basePortionGrams} g — one size.
+        One size, {basePortionGrams} g.
       </p>
     );
   }
@@ -67,7 +67,7 @@ export function PortionSlider({
           onClick={() => step(-1)}
           disabled={disabled || value <= range.min}
           aria-label="Smaller portion"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink transition disabled:opacity-30"
+          className="flex size-9 shrink-0 items-center justify-center rounded-control border border-border text-ink transition disabled:opacity-30"
         >
           <Minus className="size-4" aria-hidden />
         </button>
@@ -90,7 +90,7 @@ export function PortionSlider({
           onClick={() => step(1)}
           disabled={disabled || value >= range.max}
           aria-label="Larger portion"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink transition disabled:opacity-30"
+          className="flex size-9 shrink-0 items-center justify-center rounded-control border border-border text-ink transition disabled:opacity-30"
         >
           <Plus className="size-4" aria-hidden />
         </button>

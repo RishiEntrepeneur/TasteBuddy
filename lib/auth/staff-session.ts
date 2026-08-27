@@ -1,12 +1,22 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 /**
  * Staff sessions for the menu editor.
  *
  * A venue signs in with an opaque access key; what it gets back is a signed,
- * httpOnly cookie naming the restaurant it may edit. The cookie is stateless —
- * an HMAC over the claims — so there is no session table to grow, expire or
- * replicate, and signing out is just clearing the cookie.
+ * httpOnly cookie naming the key and the venue currently being edited. The
+ * cookie is stateless (an HMAC over the claims), so there is no session table
+ * to grow, expire or replicate, and signing out is just clearing the cookie.
+ *
+ * Stateless does not mean unrevokable. The cookie carries the key id, and
+ * `staffContext` re-reads that key's grants on every admin request, so a
+ * revoked key, or a venue taken off it, stops working within one request
+ * rather than at the end of an eight-hour cookie.
  *
  * The raw key never reaches client JavaScript after sign-in, and never lands
  * in a log: only its hash is compared, and only the cookie travels afterwards.
@@ -42,6 +52,9 @@ export function hashStaffKey(key: string): string {
 }
 
 export interface StaffSession {
+  /** The key this session was minted from. */
+  keyId: string;
+  /** The venue currently being edited — one of the venues the key grants. */
   restaurantId: string;
   /** Unix seconds. */
   expiresAt: number;
@@ -53,10 +66,21 @@ function sign(payload: string): string {
     .digest("base64url");
 }
 
-/** Encodes a session as `<restaurantId>.<expiry>.<signature>`. */
-export function mintSession(restaurantId: string, now = Date.now()): string {
+/**
+ * Encodes a session as `<keyId>.<restaurantId>.<expiry>.<signature>`.
+ *
+ * The key id rides along because a signed cookie alone cannot be taken back.
+ * Callers re-check the grant against the database, so revoking a key ends the
+ * shift it is being used on rather than waiting out the eight hours — which is
+ * the only behaviour worth having when the reason for revoking is a lost iPad.
+ */
+export function mintSession(
+  keyId: string,
+  restaurantId: string,
+  now = Date.now(),
+): string {
   const expiresAt = Math.floor(now / 1000) + SESSION_TTL_SECONDS;
-  const payload = `${restaurantId}.${expiresAt}`;
+  const payload = `${keyId}.${restaurantId}.${expiresAt}`;
   return `${payload}.${sign(payload)}`;
 }
 
@@ -71,10 +95,12 @@ export function readSession(
   if (!raw) return null;
 
   const parts = raw.split(".");
-  if (parts.length !== 3) return null;
+  if (parts.length !== 4) return null;
 
-  const [restaurantId, expiryText, signature] = parts;
-  const expected = sign(`${restaurantId}.${expiryText}`);
+  const [keyId, restaurantId, expiryText, signature] = parts;
+  if (!keyId || !restaurantId || !expiryText || !signature) return null;
+
+  const expected = sign(`${keyId}.${restaurantId}.${expiryText}`);
 
   // Length check first: timingSafeEqual throws on a mismatch.
   if (signature.length !== expected.length) return null;
@@ -84,7 +110,7 @@ export function readSession(
   const expiresAt = Number(expiryText);
   if (!Number.isFinite(expiresAt) || expiresAt * 1000 <= now) return null;
 
-  return { restaurantId, expiresAt };
+  return { keyId, restaurantId, expiresAt };
 }
 
 /** Cookie attributes. `secure` is dropped in dev so localhost still works. */
@@ -102,4 +128,33 @@ export function sessionCookieOptions(): {
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   };
+}
+
+/** Marks a TasteBuddy key on sight, in a log or a paste into the wrong window. */
+export const STAFF_KEY_PREFIX = "tb";
+
+/**
+ * A fresh access key.
+ *
+ * 256 bits from the system CSPRNG, hex so it survives being read down a phone
+ * or typed off a printout, and grouped in fives for the same reason: a key
+ * gets transcribed by a person at least once, and an unbroken 64-character
+ * run is where that goes wrong.
+ */
+export function generateStaffKey(): string {
+  const hex = randomBytes(32).toString("hex");
+  const groups = hex.match(/.{1,5}/g) ?? [];
+  return `${STAFF_KEY_PREFIX}-${groups.join("-")}`;
+}
+
+/**
+ * The comparable form of a key someone typed.
+ *
+ * Grouping dashes, stray spaces and capitals are display, not secret: a key
+ * read off a printout and typed back in should work. Sign-in checks this form
+ * as well as the literal one, so keys issued before the rule existed still
+ * match on exactly what they were.
+ */
+export function normaliseStaffKey(key: string): string {
+  return key.replace(/[\s-]/g, "").toLowerCase();
 }
