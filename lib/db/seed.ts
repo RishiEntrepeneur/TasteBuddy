@@ -1,7 +1,10 @@
 import {
   DEFAULT_PORTION_RANGE,
+  type AllergenKey,
   type Asset3D,
+  type IngredientCategory,
   type MenuItem,
+  type MenuItemIngredient,
   type Restaurant,
 } from "@/lib/types";
 
@@ -42,6 +45,199 @@ function asset(
     ...overrides,
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Ingredient catalogue                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Allergens live on the ingredient, not on the dish. Every dish using
+ * `parmesan` inherits dairy without anyone remembering to tag it, which is the
+ * whole point of a shared catalogue.
+ */
+const ING = {
+  octopus: ["seafood", ["molluscs"]],
+  prawn: ["seafood", ["shellfish"]],
+  sea_bream: ["seafood", ["fish"]],
+  fish_sauce: ["pantry", ["fish"]],
+  lamb_shoulder: ["meat", []],
+  beef_brisket: ["meat", []],
+  pork_belly: ["meat", []],
+  burrata: ["dairy", ["dairy"]],
+  feta: ["dairy", ["dairy"]],
+  parmesan: ["dairy", ["dairy"]],
+  butter: ["dairy", ["dairy"]],
+  cream_cheese: ["dairy", ["dairy"]],
+  double_cream: ["dairy", ["dairy"]],
+  condensed_milk: ["dairy", ["dairy"]],
+  eggs: ["pantry", ["eggs"]],
+  wheat_flour: ["grain", ["gluten"]],
+  carnaroli_rice: ["grain", []],
+  rice_noodles: ["grain", []],
+  rice_vermicelli: ["grain", []],
+  rice_paper: ["grain", []],
+  pistachio: ["pantry", ["tree_nuts"]],
+  hazelnut_praline: ["pantry", ["tree_nuts"]],
+  peanut_sauce: ["pantry", ["peanuts"]],
+  soy_sauce: ["pantry", ["soy"]],
+  hoisin: ["pantry", ["soy"]],
+  aged_balsamic: ["pantry", ["sulphites"]],
+  white_wine: ["pantry", ["sulphites"]],
+  olive_oil: ["pantry", []],
+  sugar: ["pantry", []],
+  salted_caramel: ["pantry", []],
+  sea_salt: ["pantry", []],
+  robusta_coffee: ["pantry", []],
+  ice: ["other", []],
+  peach: ["produce", []],
+  basil: ["produce", []],
+  mint: ["produce", []],
+  parsley: ["produce", []],
+  coriander: ["produce", []],
+  lettuce: ["produce", []],
+  spring_onion: ["produce", []],
+  broccoli: ["produce", []],
+  fennel: ["produce", []],
+  garlic: ["produce", []],
+  onion: ["produce", []],
+  chilli: ["produce", []],
+  lemon: ["produce", []],
+  lime: ["produce", []],
+  preserved_lemon: ["produce", []],
+  capers: ["produce", []],
+  ginger: ["produce", []],
+  saffron: ["spice", []],
+  smoked_paprika: ["spice", []],
+  star_anise: ["spice", []],
+} as const satisfies Record<
+  string,
+  readonly [IngredientCategory, readonly AllergenKey[]]
+>;
+
+type IngredientSlug = keyof typeof ING;
+
+function label(slug: IngredientSlug): string {
+  return slug
+    .split("_")
+    .join(" ")
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+/** Builds one line of a dish's ingredient list. */
+function ing(
+  slug: IngredientSlug,
+  quantityG: number | null,
+  extra: { isOptional?: boolean; note?: string } = {},
+): MenuItemIngredient {
+  const [category, allergens] = ING[slug];
+  return {
+    ingredient: {
+      id: `ingr_${slug}`,
+      slug: slug.replace(/_/g, "-"),
+      name: label(slug),
+      category,
+      allergens: [...allergens],
+    },
+    quantityG,
+    isOptional: extra.isOptional ?? false,
+    note: extra.note ?? null,
+  };
+}
+
+const DISH_INGREDIENTS: Record<string, MenuItemIngredient[]> = {
+  itm_charred_octopus: [
+    ing("octopus", 140),
+    ing("white_wine", 30, { note: "Braising liquor." }),
+    ing("parsley", 8),
+    ing("capers", 6),
+    ing("smoked_paprika", 2),
+    ing("garlic", 4),
+    ing("olive_oil", 12),
+  ],
+  itm_burrata: [
+    ing("burrata", 125),
+    ing("peach", 60),
+    ing("basil", 4),
+    ing("aged_balsamic", 8),
+    ing("pistachio", 10, { isOptional: true, note: "Left off on request." }),
+    ing("olive_oil", 8),
+  ],
+  itm_lamb_shoulder: [
+    ing("lamb_shoulder", 320),
+    ing("feta", 45),
+    ing("lemon", 20),
+    ing("mint", 5),
+    ing("parsley", 5),
+    ing("garlic", 6),
+    ing("olive_oil", 15),
+  ],
+  itm_saffron_risotto: [
+    ing("carnaroli_rice", 90),
+    ing("parmesan", 30),
+    ing("butter", 25),
+    ing("saffron", 0.2),
+    ing("onion", 25),
+    ing("white_wine", 40),
+  ],
+  itm_sea_bream: [
+    ing("sea_bream", 320),
+    ing("fennel", 40),
+    ing("preserved_lemon", 15),
+    ing("sea_salt", 200, { note: "Salt crust, not eaten." }),
+    ing("olive_oil", 12),
+  ],
+  itm_charred_greens: [
+    ing("broccoli", 140),
+    ing("chilli", 3),
+    ing("garlic", 5),
+    ing("lemon", 8),
+    ing("olive_oil", 10),
+  ],
+  itm_basque_cheesecake: [
+    ing("cream_cheese", 70),
+    ing("double_cream", 35),
+    ing("eggs", 28),
+    ing("sugar", 22),
+    ing("wheat_flour", 6),
+    ing("salted_caramel", 12),
+    ing("hazelnut_praline", 10),
+  ],
+  itm_pho_bo: [
+    ing("rice_noodles", 180),
+    ing("beef_brisket", 90),
+    ing("fish_sauce", 12),
+    ing("star_anise", 1),
+    ing("ginger", 6),
+    ing("spring_onion", 10),
+    ing("coriander", 6),
+    ing("soy_sauce", 5, { isOptional: true, note: "Served alongside." }),
+  ],
+  itm_bun_cha: [
+    ing("pork_belly", 140),
+    ing("rice_vermicelli", 160),
+    ing("fish_sauce", 18),
+    ing("soy_sauce", 10),
+    ing("sugar", 12),
+    ing("garlic", 5),
+    ing("mint", 8),
+    ing("lime", 10),
+  ],
+  itm_goi_cuon: [
+    ing("rice_paper", 30),
+    ing("prawn", 60),
+    ing("pork_belly", 30),
+    ing("rice_vermicelli", 40),
+    ing("mint", 5),
+    ing("lettuce", 20),
+    ing("peanut_sauce", 35),
+    ing("hoisin", 10),
+  ],
+  itm_ca_phe: [
+    ing("robusta_coffee", 30),
+    ing("condensed_milk", 45),
+    ing("ice", 160),
+  ],
+};
 
 export const SEED_RESTAURANTS: Restaurant[] = [
   {
@@ -102,6 +298,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
     imageUrl: null,
     asset: asset("itm_charred_octopus", "charred-octopus"),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_charred_octopus ?? [],
   },
   {
     id: "itm_burrata",
@@ -137,6 +334,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
       fileSizeBytes: 610_000,
     }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_burrata ?? [],
   },
   {
     id: "itm_lamb_shoulder",
@@ -165,6 +363,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
       realWorldScaleM: 0.28,
     }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_lamb_shoulder ?? [],
   },
   {
     id: "itm_saffron_risotto",
@@ -193,6 +392,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
       realWorldScaleM: 0.24,
     }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_saffron_risotto ?? [],
   },
   {
     id: "itm_sea_bream",
@@ -224,6 +424,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
       readyAt: null,
     }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_sea_bream ?? [],
   },
   {
     id: "itm_charred_greens",
@@ -251,6 +452,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
       realWorldScaleM: 0.18,
     }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_charred_greens ?? [],
   },
   {
     id: "itm_basque_cheesecake",
@@ -281,6 +483,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
       realWorldScaleM: 0.16,
     }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_basque_cheesecake ?? [],
   },
 
   /* ------------------------------ Hanoi House ----------------------------- */
@@ -309,6 +512,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
     imageUrl: null,
     asset: asset("itm_pho_bo", "pho-bo", { realWorldScaleM: 0.25 }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_pho_bo ?? [],
   },
   {
     id: "itm_bun_cha",
@@ -341,6 +545,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
     imageUrl: null,
     asset: asset("itm_bun_cha", "bun-cha"),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_bun_cha ?? [],
   },
   {
     id: "itm_goi_cuon",
@@ -368,6 +573,7 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
     imageUrl: null,
     asset: asset("itm_goi_cuon", "goi-cuon", { realWorldScaleM: 0.19 }),
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_goi_cuon ?? [],
   },
   {
     id: "itm_ca_phe",
@@ -391,5 +597,6 @@ export const SEED_MENU_ITEMS: MenuItem[] = [
     imageUrl: null,
     asset: null,
     isAvailable: true,
+    ingredients: DISH_INGREDIENTS.itm_ca_phe ?? [],
   },
 ];

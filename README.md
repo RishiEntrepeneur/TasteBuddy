@@ -52,7 +52,8 @@ lib/
   pipeline/{validation,lod,cdn,generator}.ts
   db/{client,repository,seed}.ts      Postgres, with a seed-data fallback
 db/
-  schema.sql                          Restaurants, MenuItems, Allergens, 3D assets
+  schema.sql                          Restaurants, MenuItems, Allergens, 3D assets,
+                                      Ingredients, SavedDishes
   seed.sql                            Demo data mirroring lib/db/seed.ts
 ```
 
@@ -76,6 +77,47 @@ Two decisions worth calling out:
 `lib/db/seed.ts` otherwise. Callers never branch on which is active. The whole
 menu — allergens aggregated to JSON, live asset joined — is one round trip, so
 rendering a menu never N+1s.
+
+### Ingredients, and why allergens are derived from them
+
+Allergens belong to the **ingredient**, not to the dish. `ingredients` is a
+shared catalogue, `ingredient_allergens` says what each one carries, and the
+`menu_item_effective_allergens` view unions those derived facts with the
+hand-declared rows.
+
+Both sources are needed and neither is sufficient: an ingredient cannot know it
+shares a fryer, and a kitchen cannot be trusted to remember that butter is dairy
+across four hundred dishes. Severity resolves to the strongest claim, and an
+ingredient marked `is_optional` yields `removable` — so "hold the pistachio"
+stops being a hard conflict automatically.
+
+This is not theoretical. Seeding the real ingredient lists made Saffron Risotto
+declare **sulphites**, from the white wine it is cooked with, which the
+hand-tagged data had never captured. The conflict message names the culprit too:
+"Contains sulphites — White wine".
+
+`menu_item_ingredients` is indexed by ingredient as well as by dish, because
+"which dishes use this?" is the query you need the hour a supplier issues a
+recall notice.
+
+### Saved dishes
+
+There are no accounts, so a saved list is keyed by an opaque token the browser
+mints and keeps (`lib/hooks/useSavedDishes`). The token *is* the credential:
+whoever holds it can read and change that list, so it is 192 bits of randomness
+and nothing identifying is stored beside it. That trade is fine for a favourites
+list and would not be for anything else — which is exactly why the allergen
+profile never goes near it.
+
+Saved dishes are re-evaluated against the diner's *current* profile every time
+the list is opened, so a dish kept last month turns unsafe the moment they add
+an allergen.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/saved?token=…` | The list, hydrated into full menu items |
+| `POST` | `/api/saved` | Save. Idempotent |
+| `DELETE` | `/api/saved?token=…&menuItemId=…` | Remove |
 
 ### The allergen model
 

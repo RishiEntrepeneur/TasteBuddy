@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 import { AllergenProfilePicker } from "@/components/AllergenProfilePicker";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { useAllergenProfile } from "@/lib/hooks/useAllergenProfile";
+import { useSavedDishes } from "@/lib/hooks/useSavedDishes";
 import { evaluateMenuItem } from "@/lib/menu-filter";
 import type {
   MenuCategory,
@@ -66,6 +67,8 @@ export function RestaurantDashboard({
     setThreshold,
     clearProfile,
   } = useAllergenProfile();
+
+  const savedDishes = useSavedDishes();
 
   const [portions, setPortions] = useState<Record<string, number>>({});
   const [hideUnsafe, setHideUnsafe] = useState(false);
@@ -203,6 +206,12 @@ export function RestaurantDashboard({
           </p>
         ) : null}
 
+        {savedDishes.error ? (
+          <p role="status" className="pt-4 text-sm text-terracotta">
+            {savedDishes.error}
+          </p>
+        ) : null}
+
         {grouped.length === 0 ? (
           <div className="py-20 text-center">
             <UtensilsCrossed
@@ -229,6 +238,9 @@ export function RestaurantDashboard({
                     portion={item.appliedPortion}
                     onPortionChange={(portion) => setPortion(item.id, portion)}
                     onOpenAr={() => setArItemId(item.id)}
+                    avoided={profile.avoid}
+                    isSaved={savedDishes.isSaved(item.id)}
+                    onToggleSaved={() => void savedDishes.toggle(item.id)}
                   />
                 ))}
               </div>

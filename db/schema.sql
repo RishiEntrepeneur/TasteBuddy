@@ -243,3 +243,136 @@ CREATE TRIGGER restaurants_touch BEFORE UPDATE ON restaurants
 DROP TRIGGER IF EXISTS menu_items_touch ON menu_items;
 CREATE TRIGGER menu_items_touch BEFORE UPDATE ON menu_items
   FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+-- ============================================================================
+--  Migration 002 — ingredients and saved dishes
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+--  ingredients
+--
+--  A shared catalogue, not per-restaurant rows: "double cream" carries dairy
+--  wherever it is used, so the allergen belongs to the ingredient and every
+--  dish that uses it inherits the fact. Hand-tagging each dish instead is how
+--  a menu ends up with one dish that forgot to declare its butter.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS ingredients (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug        TEXT NOT NULL UNIQUE,
+  name        TEXT NOT NULL,
+  -- Broad grouping for the shopping-list view: 'dairy', 'produce', 'meat'…
+  category    TEXT NOT NULL DEFAULT 'other',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT ingredients_slug_format CHECK (slug ~ '^[a-z0-9][a-z0-9-]{1,62}$')
+);
+
+CREATE INDEX IF NOT EXISTS ingredients_category_idx ON ingredients (category, name);
+
+-- Allergens an ingredient inherently carries.
+CREATE TABLE IF NOT EXISTS ingredient_allergens (
+  ingredient_id  UUID NOT NULL REFERENCES ingredients (id) ON DELETE CASCADE,
+  allergen_key   TEXT NOT NULL REFERENCES allergens (key) ON DELETE RESTRICT,
+  PRIMARY KEY (ingredient_id, allergen_key)
+);
+
+-- ---------------------------------------------------------------------------
+--  menu_item_ingredients
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS menu_item_ingredients (
+  menu_item_id   UUID NOT NULL REFERENCES menu_items (id) ON DELETE CASCADE,
+  ingredient_id  UUID NOT NULL REFERENCES ingredients (id) ON DELETE RESTRICT,
+  -- Grams in one base portion; null when the amount is "to taste".
+  quantity_g     NUMERIC(8, 2),
+  -- A garnish the kitchen will leave off on request. Drives the `removable`
+  -- severity, so "hold the pistachio" stops being a hard conflict.
+  is_optional    BOOLEAN NOT NULL DEFAULT FALSE,
+  note           TEXT,
+  sort_order     INTEGER NOT NULL DEFAULT 0,
+
+  PRIMARY KEY (menu_item_id, ingredient_id),
+  CONSTRAINT menu_item_ingredients_qty CHECK (quantity_g IS NULL OR quantity_g > 0)
+);
+
+CREATE INDEX IF NOT EXISTS menu_item_ingredients_item_idx
+  ON menu_item_ingredients (menu_item_id, sort_order);
+
+-- "Which dishes use this ingredient?" — the recall query when a supplier
+-- issues a notice, which is the whole reason this is a shared catalogue.
+CREATE INDEX IF NOT EXISTS menu_item_ingredients_ingredient_idx
+  ON menu_item_ingredients (ingredient_id);
+
+-- ---------------------------------------------------------------------------
+--  menu_item_effective_allergens
+--
+--  What a dish actually exposes: allergens derived from its ingredients,
+--  unioned with the hand-declared rows. Both sources are needed — an
+--  ingredient cannot know it shares a fryer, and a kitchen cannot be trusted
+--  to remember that butter is dairy on all four hundred dishes.
+--
+--  Severity resolves to the strongest claim: an explicit `contains` beats an
+--  optional ingredient's `removable`.
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE VIEW menu_item_effective_allergens AS
+WITH derived AS (
+  SELECT
+    mii.menu_item_id,
+    ia.allergen_key,
+    CASE WHEN mii.is_optional THEN 'removable' ELSE 'contains' END::allergen_severity AS severity,
+    i.name AS note
+  FROM menu_item_ingredients mii
+  JOIN ingredients i ON i.id = mii.ingredient_id
+  JOIN ingredient_allergens ia ON ia.ingredient_id = i.id
+),
+declared AS (
+  SELECT menu_item_id, allergen_key, severity, note
+  FROM menu_item_allergens
+),
+combined AS (
+  SELECT * FROM derived
+  UNION ALL
+  SELECT * FROM declared
+)
+SELECT DISTINCT ON (menu_item_id, allergen_key)
+  menu_item_id,
+  allergen_key,
+  severity,
+  note
+FROM combined
+ORDER BY
+  menu_item_id,
+  allergen_key,
+  -- Strongest claim wins.
+  array_position(
+    ARRAY['contains', 'may_contain', 'removable']::allergen_severity[],
+    severity
+  );
+
+-- ---------------------------------------------------------------------------
+--  saved_dishes
+--
+--  TasteBuddy has no accounts, so a saved list is keyed by an opaque token the
+--  browser generates and keeps. The token is the only credential: anyone
+--  holding it can read and change that list, which is why it is 32 bytes of
+--  randomness and why nothing identifying is ever stored beside it.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS saved_dishes (
+  diner_token   TEXT NOT NULL,
+  menu_item_id  UUID NOT NULL REFERENCES menu_items (id) ON DELETE CASCADE,
+  note          TEXT,
+  saved_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  PRIMARY KEY (diner_token, menu_item_id),
+  CONSTRAINT saved_dishes_token_shape CHECK (diner_token ~ '^[A-Za-z0-9_-]{22,64}$')
+);
+
+CREATE INDEX IF NOT EXISTS saved_dishes_token_idx
+  ON saved_dishes (diner_token, saved_at DESC);
+
+-- Abandoned lists are not worth storing forever; a housekeeping job deletes
+-- rows whose token has not been touched in a year.
+CREATE INDEX IF NOT EXISTS saved_dishes_stale_idx ON saved_dishes (saved_at);

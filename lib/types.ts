@@ -146,6 +146,62 @@ export interface Asset3D {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Ingredients                                                                */
+/* -------------------------------------------------------------------------- */
+
+export type IngredientCategory =
+  | "dairy"
+  | "produce"
+  | "meat"
+  | "seafood"
+  | "grain"
+  | "pantry"
+  | "spice"
+  | "other";
+
+/**
+ * A shared catalogue entry. Allergens belong to the ingredient rather than to
+ * each dish that uses it, so a dish cannot forget that its butter is dairy.
+ */
+export interface Ingredient {
+  id: string;
+  slug: string;
+  name: string;
+  category: IngredientCategory;
+  /** Allergens this ingredient inherently carries. */
+  allergens: AllergenKey[];
+}
+
+export interface MenuItemIngredient {
+  ingredient: Ingredient;
+  /** Grams in one base portion; null when the amount is "to taste". */
+  quantityG: number | null;
+  /** A garnish the kitchen will leave off on request. */
+  isOptional: boolean;
+  note: string | null;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Saved dishes                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A dish a diner kept. There are no accounts, so the list is keyed by an
+ * opaque token the browser generates — see `lib/hooks/useDinerToken`.
+ */
+export interface SavedDish {
+  menuItemId: string;
+  savedAt: string;
+  note: string | null;
+}
+
+/** A saved dish joined back to enough of its menu item to render a card. */
+export interface SavedDishDetail extends SavedDish {
+  item: MenuItem;
+  restaurant: Restaurant;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Menu                                                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -188,6 +244,8 @@ export interface MenuItem {
   imageUrl: string | null;
   asset: Asset3D | null;
   isAvailable: boolean;
+  /** Everything on the plate, in menu order. */
+  ingredients: MenuItemIngredient[];
 }
 
 export interface RestaurantBranding {

@@ -141,3 +141,112 @@ WHERE mi.name = 'Whole Sea Bream'
   );
 
 COMMIT;
+
+-- ============================================================================
+--  Seed 002 — ingredients
+--
+--  Allergens attach to the ingredient, so every dish using parmesan inherits
+--  dairy without anyone tagging it. `menu_item_effective_allergens` unions
+--  these with the hand-declared rows.
+-- ============================================================================
+
+BEGIN;
+
+INSERT INTO ingredients (slug, name, category) VALUES
+  ('octopus','Octopus','seafood'), ('prawn','Prawn','seafood'), ('sea-bream','Sea bream','seafood'),
+  ('fish-sauce','Fish sauce','pantry'), ('lamb-shoulder','Lamb shoulder','meat'),
+  ('beef-brisket','Beef brisket','meat'), ('pork-belly','Pork belly','meat'),
+  ('burrata','Burrata','dairy'), ('feta','Feta','dairy'), ('parmesan','Parmesan','dairy'),
+  ('butter','Butter','dairy'), ('cream-cheese','Cream cheese','dairy'),
+  ('double-cream','Double cream','dairy'), ('condensed-milk','Condensed milk','dairy'),
+  ('eggs','Eggs','pantry'), ('wheat-flour','Wheat flour','grain'),
+  ('carnaroli-rice','Carnaroli rice','grain'), ('rice-noodles','Rice noodles','grain'),
+  ('rice-vermicelli','Rice vermicelli','grain'), ('rice-paper','Rice paper','grain'),
+  ('pistachio','Pistachio','pantry'), ('hazelnut-praline','Hazelnut praline','pantry'),
+  ('peanut-sauce','Peanut sauce','pantry'), ('soy-sauce','Soy sauce','pantry'),
+  ('hoisin','Hoisin','pantry'), ('aged-balsamic','Aged balsamic','pantry'),
+  ('white-wine','White wine','pantry'), ('olive-oil','Olive oil','pantry'),
+  ('sugar','Sugar','pantry'), ('salted-caramel','Salted caramel','pantry'),
+  ('sea-salt','Sea salt','pantry'), ('robusta-coffee','Robusta coffee','pantry'),
+  ('ice','Ice','other'), ('peach','Peach','produce'), ('basil','Basil','produce'),
+  ('mint','Mint','produce'), ('parsley','Parsley','produce'), ('coriander','Coriander','produce'),
+  ('lettuce','Lettuce','produce'), ('spring-onion','Spring onion','produce'),
+  ('broccoli','Broccoli','produce'), ('fennel','Fennel','produce'), ('garlic','Garlic','produce'),
+  ('onion','Onion','produce'), ('chilli','Chilli','produce'), ('lemon','Lemon','produce'),
+  ('lime','Lime','produce'), ('preserved-lemon','Preserved lemon','produce'),
+  ('capers','Capers','produce'), ('ginger','Ginger','produce'),
+  ('saffron','Saffron','spice'), ('smoked-paprika','Smoked paprika','spice'),
+  ('star-anise','Star anise','spice')
+ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category;
+
+INSERT INTO ingredient_allergens (ingredient_id, allergen_key)
+SELECT i.id, v.allergen_key
+FROM (VALUES
+  ('octopus','molluscs'), ('prawn','shellfish'), ('sea-bream','fish'), ('fish-sauce','fish'),
+  ('burrata','dairy'), ('feta','dairy'), ('parmesan','dairy'), ('butter','dairy'),
+  ('cream-cheese','dairy'), ('double-cream','dairy'), ('condensed-milk','dairy'),
+  ('eggs','eggs'), ('wheat-flour','gluten'), ('pistachio','tree_nuts'),
+  ('hazelnut-praline','tree_nuts'), ('peanut-sauce','peanuts'),
+  ('soy-sauce','soy'), ('hoisin','soy'), ('aged-balsamic','sulphites'), ('white-wine','sulphites')
+) AS v(slug, allergen_key)
+JOIN ingredients i ON i.slug = v.slug
+ON CONFLICT DO NOTHING;
+
+INSERT INTO menu_item_ingredients (menu_item_id, ingredient_id, quantity_g, is_optional, note, sort_order)
+SELECT mi.id, i.id, v.qty, v.optional, v.note, v.ord
+FROM (VALUES
+  ('Charred Octopus','octopus',140.0,FALSE,NULL,1),
+  ('Charred Octopus','white-wine',30.0,FALSE,'Braising liquor.',2),
+  ('Charred Octopus','parsley',8.0,FALSE,NULL,3),
+  ('Charred Octopus','capers',6.0,FALSE,NULL,4),
+  ('Charred Octopus','smoked-paprika',2.0,FALSE,NULL,5),
+  ('Charred Octopus','olive-oil',12.0,FALSE,NULL,6),
+  ('Burrata & Peach','burrata',125.0,FALSE,NULL,1),
+  ('Burrata & Peach','peach',60.0,FALSE,NULL,2),
+  ('Burrata & Peach','basil',4.0,FALSE,NULL,3),
+  ('Burrata & Peach','aged-balsamic',8.0,FALSE,NULL,4),
+  ('Burrata & Peach','pistachio',10.0,TRUE,'Left off on request.',5),
+  ('Fire-Roasted Lamb Shoulder','lamb-shoulder',320.0,FALSE,NULL,1),
+  ('Fire-Roasted Lamb Shoulder','feta',45.0,FALSE,NULL,2),
+  ('Fire-Roasted Lamb Shoulder','lemon',20.0,FALSE,NULL,3),
+  ('Fire-Roasted Lamb Shoulder','mint',5.0,FALSE,NULL,4),
+  ('Saffron Risotto','carnaroli-rice',90.0,FALSE,NULL,1),
+  ('Saffron Risotto','parmesan',30.0,FALSE,NULL,2),
+  ('Saffron Risotto','butter',25.0,FALSE,NULL,3),
+  ('Saffron Risotto','saffron',0.2,FALSE,NULL,4),
+  ('Saffron Risotto','white-wine',40.0,FALSE,NULL,5),
+  ('Whole Sea Bream','sea-bream',320.0,FALSE,NULL,1),
+  ('Whole Sea Bream','fennel',40.0,FALSE,NULL,2),
+  ('Whole Sea Bream','preserved-lemon',15.0,FALSE,NULL,3),
+  ('Charred Greens','broccoli',140.0,FALSE,NULL,1),
+  ('Charred Greens','chilli',3.0,FALSE,NULL,2),
+  ('Charred Greens','garlic',5.0,FALSE,NULL,3),
+  ('Charred Greens','olive-oil',10.0,FALSE,NULL,4),
+  ('Basque Cheesecake','cream-cheese',70.0,FALSE,NULL,1),
+  ('Basque Cheesecake','double-cream',35.0,FALSE,NULL,2),
+  ('Basque Cheesecake','eggs',28.0,FALSE,NULL,3),
+  ('Basque Cheesecake','wheat-flour',6.0,FALSE,NULL,4),
+  ('Basque Cheesecake','hazelnut-praline',10.0,FALSE,NULL,5),
+  ('Phở Bò','rice-noodles',180.0,FALSE,NULL,1),
+  ('Phở Bò','beef-brisket',90.0,FALSE,NULL,2),
+  ('Phở Bò','fish-sauce',12.0,FALSE,NULL,3),
+  ('Phở Bò','star-anise',1.0,FALSE,NULL,4),
+  ('Phở Bò','soy-sauce',5.0,TRUE,'Served alongside.',5),
+  ('Bún Chả','pork-belly',140.0,FALSE,NULL,1),
+  ('Bún Chả','rice-vermicelli',160.0,FALSE,NULL,2),
+  ('Bún Chả','fish-sauce',18.0,FALSE,NULL,3),
+  ('Bún Chả','soy-sauce',10.0,FALSE,NULL,4),
+  ('Gỏi Cuốn','rice-paper',30.0,FALSE,NULL,1),
+  ('Gỏi Cuốn','prawn',60.0,FALSE,NULL,2),
+  ('Gỏi Cuốn','peanut-sauce',35.0,FALSE,NULL,3),
+  ('Gỏi Cuốn','hoisin',10.0,FALSE,NULL,4),
+  ('Cà Phê Sữa Đá','robusta-coffee',30.0,FALSE,NULL,1),
+  ('Cà Phê Sữa Đá','condensed-milk',45.0,FALSE,NULL,2),
+  ('Cà Phê Sữa Đá','ice',160.0,FALSE,NULL,3)
+) AS v(item_name, slug, qty, optional, note, ord)
+JOIN menu_items mi ON mi.name = v.item_name
+JOIN ingredients i ON i.slug = v.slug
+ON CONFLICT (menu_item_id, ingredient_id) DO UPDATE
+  SET quantity_g = EXCLUDED.quantity_g, is_optional = EXCLUDED.is_optional, note = EXCLUDED.note;
+
+COMMIT;

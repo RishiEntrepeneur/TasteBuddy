@@ -1,10 +1,23 @@
 "use client";
 
-import { AlertTriangle, Box, Check, Loader2, Scan } from "lucide-react";
+import {
+  AlertTriangle,
+  Bookmark,
+  Box,
+  Check,
+  Loader2,
+  Scan,
+} from "lucide-react";
 
+import { IngredientList } from "@/components/IngredientList";
 import { PortionSlider } from "@/components/PortionSlider";
 import { NUTRITION_LABELS, formatNutrient, formatPrice } from "@/lib/nutrition";
-import type { EvaluatedMenuItem, NutritionKey, Restaurant } from "@/lib/types";
+import type {
+  AllergenKey,
+  EvaluatedMenuItem,
+  NutritionKey,
+  Restaurant,
+} from "@/lib/types";
 
 /** Nutrients shown on the card. The rest live behind the nutrition sheet. */
 const SUMMARY_NUTRIENTS: readonly NutritionKey[] = [
@@ -20,6 +33,10 @@ interface MenuItemCardProps {
   portion: number;
   onPortionChange: (portion: number) => void;
   onOpenAr: () => void;
+  /** Allergens the diner avoids, so ingredients can point at the culprit. */
+  avoided: readonly AllergenKey[];
+  isSaved: boolean;
+  onToggleSaved: () => void;
 }
 
 export function MenuItemCard({
@@ -28,6 +45,9 @@ export function MenuItemCard({
   portion,
   onPortionChange,
   onOpenAr,
+  avoided,
+  isSaved,
+  onToggleSaved,
 }: MenuItemCardProps) {
   const allergenConflicts = item.conflicts.filter((c) => c.type === "allergen");
   const nutritionConflicts = item.conflicts.filter(
@@ -54,13 +74,35 @@ export function MenuItemCard({
             {item.description}
           </p>
         </div>
-        <p className="shrink-0 text-sm font-semibold tabular-nums">
-          {formatPrice(
-            Math.round(item.priceCents * portion),
-            restaurant.currency,
-            restaurant.locale,
-          )}
-        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleSaved}
+            aria-pressed={isSaved}
+            aria-label={
+              isSaved ? `Remove ${item.name} from saved` : `Save ${item.name}`
+            }
+            className={[
+              "flex size-8 items-center justify-center rounded-full border transition-colors",
+              isSaved
+                ? "border-sage bg-sage text-white"
+                : "border-border text-ink-muted hover:border-ink hover:text-ink",
+            ].join(" ")}
+          >
+            <Bookmark
+              className="size-4"
+              fill={isSaved ? "currentColor" : "none"}
+              aria-hidden
+            />
+          </button>
+          <p className="text-sm font-semibold tabular-nums">
+            {formatPrice(
+              Math.round(item.priceCents * portion),
+              restaurant.currency,
+              restaurant.locale,
+            )}
+          </p>
+        </div>
       </header>
 
       {/* Conflicts. Allergens first — they are the reason this product exists. */}
@@ -120,6 +162,12 @@ export function MenuItemCard({
           </div>
         ))}
       </dl>
+
+      <IngredientList
+        ingredients={item.ingredients}
+        avoided={avoided}
+        portion={portion}
+      />
 
       <button
         type="button"
